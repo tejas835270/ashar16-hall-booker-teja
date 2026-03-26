@@ -16,7 +16,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 text-primary-foreground">
             <Building2 className="h-6 w-6" />
-            <span className="font-bold text-lg hidden sm:inline">GreenVille Society</span>
+            <span className="font-bold text-lg hidden sm:inline">Ashar 16 CHSL</span>
           </Link>
           <nav className="flex gap-1">
             {navItems.map(item => {

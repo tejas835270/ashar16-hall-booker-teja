@@ -54,17 +54,17 @@ export default function Index() {
     const ds = dateStr(day);
     const past = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
     if (past) return 'past';
+    if (!isDateAvailable(ds)) return 'booked';
     const slots = bookedDates[ds];
     if (!slots) return 'available';
-    if (slots.includes('full')) return 'booked';
     return 'partial';
   }
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
       <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Community Hall Booking</h1>
-        <p className="text-muted-foreground text-sm mt-1">Select an available date to book the hall</p>
+        <h1 className="text-2xl font-bold text-foreground">Ashar 16 CHSL – Hall Booking</h1>
+        <p className="text-muted-foreground text-sm mt-1">Select an available date to book the community hall</p>
       </div>
 
       <div className="bg-card rounded-xl shadow-card p-4 sm:p-6">
