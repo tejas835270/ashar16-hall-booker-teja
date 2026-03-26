@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScanLine, ShieldCheck, ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { validateBooking, type Booking } from '@/lib/bookingStore';
+import { validateBooking, HALL_LABELS, SLOT_TIMES, formatHour, type Booking } from '@/lib/bookingStore';
 
 type Result = null | { valid: true; booking: Booking } | { valid: false };
 
@@ -20,6 +20,11 @@ export default function Guard() {
     setBookingId('');
     setResult(null);
   }
+
+  const slotLabel = (b: Booking) => {
+    if (b.timeSlot === 'custom') return `${formatHour(b.customStartHour!)} – ${formatHour(b.customEndHour!)}`;
+    return SLOT_TIMES[b.timeSlot as keyof typeof SLOT_TIMES]?.label || b.timeSlot;
+  };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-md">
@@ -68,8 +73,11 @@ export default function Guard() {
             <p><span className="text-muted-foreground">Booking ID:</span> <span className="font-mono font-bold">{result.booking.id}</span></p>
             <p><span className="text-muted-foreground">Flat:</span> {result.booking.flatNumber}</p>
             <p><span className="text-muted-foreground">Name:</span> {result.booking.name}</p>
-            <p><span className="text-muted-foreground">Date:</span> {new Date(result.booking.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+            <p><span className="text-muted-foreground">Hall:</span> {HALL_LABELS[result.booking.hall] || '—'}</p>
+            <p><span className="text-muted-foreground">Slot:</span> {slotLabel(result.booking)}</p>
+            <p><span className="text-muted-foreground">Date:</span> {new Date(result.booking.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
             <p><span className="text-muted-foreground">Event:</span> {result.booking.eventType}</p>
+            <p><span className="text-muted-foreground">Attendees:</span> {result.booking.memberCount}</p>
           </div>
           <Button variant="outline" onClick={handleReset} className="mt-4">Scan Another</Button>
         </div>

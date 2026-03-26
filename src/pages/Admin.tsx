@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Trash2, DollarSign, CalendarDays, Ban } from 'lucide-react';
+import { Trash2, IndianRupee, CalendarDays, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getBookings, cancelBooking, type Booking } from '@/lib/bookingStore';
+import { getBookings, cancelBooking, HALL_LABELS, SLOT_TIMES, formatHour, type Booking } from '@/lib/bookingStore';
 import { Badge } from '@/components/ui/badge';
 
 export default function Admin() {
@@ -21,14 +21,16 @@ export default function Admin() {
   }
 
   function formatDate(d: string) {
-    return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  const slotLabel = (s: Booking['timeSlot']) =>
-    s === 'full' ? 'Full Day' : s === 'half-morning' ? 'Morning' : 'Evening';
+  const slotLabel = (b: Booking) => {
+    if (b.timeSlot === 'custom') return `${formatHour(b.customStartHour!)}–${formatHour(b.customEndHour!)}`;
+    return SLOT_TIMES[b.timeSlot as keyof typeof SLOT_TIMES]?.label?.replace(/\s*\(.*\)/, '') || b.timeSlot;
+  };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
 
       {/* Stats */}
@@ -38,8 +40,8 @@ export default function Admin() {
           <div><p className="text-sm text-muted-foreground">Upcoming</p><p className="text-xl font-bold">{upcomingCount}</p></div>
         </div>
         <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center"><DollarSign className="h-5 w-5 text-success" /></div>
-          <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">${totalRevenue}</p></div>
+          <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center"><IndianRupee className="h-5 w-5 text-success" /></div>
+          <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p></div>
         </div>
         <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center"><Ban className="h-5 w-5 text-destructive" /></div>
@@ -57,7 +59,7 @@ export default function Admin() {
                 <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Flat</th>
                 <th className="text-left p-3 font-medium text-muted-foreground hidden sm:table-cell">Name</th>
-                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Event</th>
+                <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Hall</th>
                 <th className="text-left p-3 font-medium text-muted-foreground">Slot</th>
                 <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                 <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
@@ -74,9 +76,9 @@ export default function Admin() {
                   <td className="p-3">{formatDate(b.date)}</td>
                   <td className="p-3">{b.flatNumber}</td>
                   <td className="p-3 hidden sm:table-cell">{b.name}</td>
-                  <td className="p-3 hidden md:table-cell">{b.eventType}</td>
-                  <td className="p-3">{slotLabel(b.timeSlot)}</td>
-                  <td className="p-3 text-right">${b.total}</td>
+                  <td className="p-3 hidden md:table-cell">{HALL_LABELS[b.hall] || '—'}</td>
+                  <td className="p-3">{slotLabel(b)}</td>
+                  <td className="p-3 text-right">₹{b.total.toLocaleString('en-IN')}</td>
                   <td className="p-3 text-center">
                     <Badge variant={b.status === 'confirmed' ? 'default' : 'destructive'} className="text-xs">
                       {b.status === 'confirmed' ? 'Active' : 'Cancelled'}
