@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  createBooking, getRent, DEPOSIT, SLOT_TIMES, HALL_LABELS, PRICING,
-  getConflictingSlots, isSlotAvailable, formatHour,
+  createBooking, getRent, getSlotTimes, getDynamicDeposit,
+  getConflictingSlots, isSlotAvailable, formatHour, HALL_LABELS,
   type Booking, type HallOption, type UserType, type TimeSlot
 } from '@/lib/bookingStore';
+import { getSettings } from '@/lib/settingsStore';
+import { downloadBookingPDF } from '@/lib/pdfReceipt';
 
 type Step = 'form' | 'payment' | 'confirmation';
 
@@ -20,8 +22,6 @@ interface Props {
   onClose: () => void;
   onBooked: () => void;
 }
-
-const CUSTOM_HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8..22
 
 export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [step, setStep] = useState<Step>('form');
@@ -39,13 +39,20 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [showTerms, setShowTerms] = useState(false);
 
+  const settings = getSettings();
+  const slotTimes = getSlotTimes();
+  const dynamicDeposit = getDynamicDeposit();
+  const dynamicPricing = settings.pricing;
+
   const conflicts = useMemo(() => getConflictingSlots(date, hall), [date, hall]);
 
   const rent = getRent(userType, timeSlot);
-  const deposit = DEPOSIT;
+  const deposit = dynamicDeposit;
+
+  const CUSTOM_HOURS = Array.from({ length: settings.hallCloseTime - settings.hallOpenTime + 1 }, (_, i) => i + settings.hallOpenTime);
 
   const customDuration = customEnd - customStart;
-  const customValid = timeSlot !== 'custom' || (customDuration >= 1 && customDuration <= 6 && customStart >= 8 && customEnd <= 22 && customEnd > customStart);
+  const customValid = timeSlot !== 'custom' || (customDuration >= 1 && customDuration <= settings.maxCustomHours && customStart >= settings.hallOpenTime && customEnd <= settings.hallCloseTime && customEnd > customStart);
 
   const slotAvailable = useMemo(() => {
     if (timeSlot === 'custom') return isSlotAvailable(date, hall, 'custom', customStart, customEnd) && customValid;
@@ -85,7 +92,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
   const slotLabel = (s: TimeSlot) => {
     if (s === 'custom') return `Custom (${formatHour(customStart)} – ${formatHour(customEnd)})`;
-    return SLOT_TIMES[s].label;
+    return slotTimes[s].label;
   };
 
   return (
@@ -136,8 +143,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <Select value={userType} onValueChange={v => setUserType(v as UserType)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="resident">Resident (Full ₹{PRICING.resident.full.toLocaleString('en-IN')} / Half ₹{PRICING.resident.half.toLocaleString('en-IN')})</SelectItem>
-                      <SelectItem value="tenant">Tenant (Full ₹{PRICING.tenant.full.toLocaleString('en-IN')} / Half ₹{PRICING.tenant.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="resident">Resident (Full ₹{dynamicPricing.resident.full.toLocaleString('en-IN')} / Half ₹{dynamicPricing.resident.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="tenant">Tenant (Full ₹{dynamicPricing.tenant.full.toLocaleString('en-IN')} / Half ₹{dynamicPricing.tenant.half.toLocaleString('en-IN')})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -161,10 +168,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <Select value={timeSlot} onValueChange={v => setTimeSlot(v as TimeSlot)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full">{SLOT_TIMES.full.label} — ₹{getRent(userType, 'full').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot1">{SLOT_TIMES['half-slot1'].label} — ₹{getRent(userType, 'half-slot1').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot2">{SLOT_TIMES['half-slot2'].label} — ₹{getRent(userType, 'half-slot2').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="custom">Custom (Max 6 hrs, 8 AM–10 PM) — ₹{getRent(userType, 'custom').toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="full">{slotTimes.full.label} — ₹{getRent(userType, 'full').toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot1">{slotTimes['half-slot1'].label} — ₹{getRent(userType, 'half-slot1').toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot2">{slotTimes['half-slot2'].label} — ₹{getRent(userType, 'half-slot2').toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="custom">Custom (Max {settings.maxCustomHours} hrs) — ₹{getRent(userType, 'custom').toLocaleString('en-IN')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -177,7 +184,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       <Select value={String(customStart)} onValueChange={v => setCustomStart(Number(v))}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {CUSTOM_HOURS.filter(h => h <= 21).map(h => (
+                          {CUSTOM_HOURS.filter(h => h <= settings.hallCloseTime - 1).map(h => (
                             <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
                           ))}
                         </SelectContent>
@@ -188,13 +195,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       <Select value={String(customEnd)} onValueChange={v => setCustomEnd(Number(v))}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {CUSTOM_HOURS.filter(h => h > customStart && h <= 22 && h - customStart <= 6).map(h => (
+                          {CUSTOM_HOURS.filter(h => h > customStart && h <= settings.hallCloseTime && h - customStart <= settings.maxCustomHours).map(h => (
                             <SelectItem key={h} value={String(h)}>{formatHour(h)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    {!customValid && <p className="col-span-2 text-xs text-destructive">Custom booking must be 1–6 hours within 8 AM – 10 PM.</p>}
+                    {!customValid && <p className="col-span-2 text-xs text-destructive">Custom booking must be 1–{settings.maxCustomHours} hours within {formatHour(settings.hallOpenTime)} – {formatHour(settings.hallCloseTime)}.</p>}
                   </div>
                 )}
 
@@ -202,11 +209,14 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 {conflicts.length > 0 && (
                   <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 space-y-1">
                     <p className="text-xs font-medium text-warning">Existing bookings on this date:</p>
-                    {conflicts.map(c => (
-                      <p key={c.id} className="text-xs text-muted-foreground">
-                        {HALL_LABELS[c.hall]} — {c.timeSlot === 'custom' ? `${formatHour(c.customStartHour!)} – ${formatHour(c.customEndHour!)}` : SLOT_TIMES[c.timeSlot as keyof typeof SLOT_TIMES].label}
-                      </p>
-                    ))}
+                    {conflicts.map(c => {
+                      const st = getSlotTimes();
+                      return (
+                        <p key={c.id} className="text-xs text-muted-foreground">
+                          {HALL_LABELS[c.hall]} — {c.timeSlot === 'custom' ? `${formatHour(c.customStartHour!)} – ${formatHour(c.customEndHour!)}` : st[c.timeSlot as keyof typeof st]?.label || c.timeSlot}
+                        </p>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -290,7 +300,12 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <p className="text-xs text-muted-foreground">Show this QR code to the security guard on the day of your event.</p>
 
-                <Button className="w-full" onClick={onBooked}>Done</Button>
+                <div className="flex gap-3">
+                  <Button variant="outline" className="flex-1" onClick={() => downloadBookingPDF(booking)}>
+                    <Download className="h-4 w-4 mr-1.5" /> Download PDF
+                  </Button>
+                  <Button className="flex-1" onClick={onBooked}>Done</Button>
+                </div>
               </div>
             )}
           </div>
@@ -304,16 +319,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
             <DialogTitle>Rules & Regulations – Ashar 16 CHSL</DialogTitle>
           </DialogHeader>
           <div className="text-sm text-muted-foreground space-y-3">
-            <p>1. The community hall must be vacated by 10:00 PM sharp. Any extension requires prior written approval from the committee.</p>
-            <p>2. The person booking the hall is responsible for any damages to property. The security deposit will be forfeited in case of damages.</p>
-            <p>3. Loud music/DJ is not permitted after 10:00 PM as per local municipal guidelines.</p>
-            <p>4. Decorations must not damage walls, ceilings, or fixtures. Use of nails, screws, or adhesive tape on walls is prohibited.</p>
-            <p>5. The hall must be left in a clean condition. The booking party is responsible for cleanup or must arrange for professional cleaning.</p>
-            <p>6. Outside caterers are permitted but must follow the society's hygiene standards. Cooking inside the hall is not allowed.</p>
-            <p>7. Parking for guests must be arranged within the designated visitor parking area only. Blocking resident parking is not permitted.</p>
-            <p>8. Alcohol consumption is permitted only for private events and must comply with all local laws and regulations.</p>
-            <p>9. The society committee reserves the right to cancel any booking with prior notice in case of emergency maintenance or society events.</p>
-            <p>10. All bookings are non-transferable. The registered flat member must be present during the event.</p>
+            {settings.rules.map((rule, i) => (
+              <p key={i}>{i + 1}. {rule}</p>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
