@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Save, Plus, Trash2, RotateCcw } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<HallSettings>(getSettings);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleSave() {
     saveSettings(settings);
@@ -44,6 +45,31 @@ export default function AdminSettings() {
         [userType]: { ...settings.pricing[userType], [field]: value },
       },
     });
+  }
+
+  function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('PDF must be under 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setSettings({ ...settings, rulesPdfDataUrl: dataUrl, rulesPdfName: file.name });
+      toast.success(`Uploaded: ${file.name}`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  function removePdf() {
+    setSettings({ ...settings, rulesPdfDataUrl: undefined, rulesPdfName: undefined });
   }
 
   return (
@@ -145,6 +171,36 @@ export default function AdminSettings() {
               </Button>
             </div>
           ))}
+        </div>
+
+        {/* PDF Upload */}
+        <div className="mt-5 pt-4 border-t">
+          <Label className="text-sm font-medium">Detailed Rules PDF (optional)</Label>
+          <p className="text-xs text-muted-foreground mb-3">Upload a PDF document with detailed rules & regulations for residents to download.</p>
+          
+          {settings.rulesPdfDataUrl ? (
+            <div className="flex items-center gap-3 bg-accent rounded-lg p-3">
+              <FileText className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{settings.rulesPdfName || 'rules.pdf'}</p>
+                <p className="text-xs text-muted-foreground">PDF attached</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={removePdf}>
+                <X className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-1.5" /> Upload PDF
+            </Button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={handlePdfUpload}
+          />
         </div>
       </div>
 

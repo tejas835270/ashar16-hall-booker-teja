@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/bookingStore';
 import { getSettings } from '@/lib/settingsStore';
 import { downloadBookingPDF } from '@/lib/pdfReceipt';
+import { toast } from 'sonner';
 
 type Step = 'form' | 'payment' | 'confirmation';
 
@@ -21,6 +22,32 @@ interface Props {
   date: string;
   onClose: () => void;
   onBooked: () => void;
+}
+
+function buildGuardMessage(booking: Booking): string {
+  const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const slotTimes = getSlotTimes();
+  const slotLabel = booking.timeSlot === 'custom'
+    ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
+    : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
+
+  return [
+    `🏢 *Ashar 16 CHSL – Booking Confirmation*`,
+    ``,
+    `📋 Booking ID: *${booking.id}*`,
+    `📅 Date: ${formattedDate}`,
+    `🏛️ Hall: ${HALL_LABELS[booking.hall]}`,
+    `⏰ Slot: ${slotLabel}`,
+    `🏠 Flat: ${booking.flatNumber}`,
+    `👤 Name: ${booking.name}`,
+    `🎉 Event: ${booking.eventType}`,
+    `👥 Attendees: ${booking.memberCount}`,
+    ``,
+    `✅ Status: CONFIRMED`,
+    `💰 Amount Paid: ₹${booking.total.toLocaleString('en-IN')}`,
+  ].join('\n');
 }
 
 export default function BookingModal({ date, onClose, onBooked }: Props) {
@@ -86,6 +113,32 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
       setPaying(false);
       setStep('confirmation');
     }, 1500);
+  }
+
+  function handleShareWhatsApp() {
+    if (!booking) return;
+    const msg = buildGuardMessage(booking);
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  function handleCopyToClipboard() {
+    if (!booking) return;
+    const msg = buildGuardMessage(booking).replace(/\*/g, '');
+    navigator.clipboard.writeText(msg).then(() => {
+      toast.success('Booking details copied to clipboard!');
+    }).catch(() => {
+      toast.error('Failed to copy');
+    });
+  }
+
+  function handleViewRulesPdf() {
+    if (settings.rulesPdfDataUrl) {
+      const link = document.createElement('a');
+      link.href = settings.rulesPdfDataUrl;
+      link.download = settings.rulesPdfName || 'Rules_and_Regulations.pdf';
+      link.click();
+    }
   }
 
   const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -300,12 +353,18 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <p className="text-xs text-muted-foreground">Show this QR code to the security guard on the day of your event.</p>
 
-                <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => downloadBookingPDF(booking)}>
-                    <Download className="h-4 w-4 mr-1.5" /> Download PDF
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => downloadBookingPDF(booking)}>
+                    <Download className="h-4 w-4 mr-1.5" /> PDF
                   </Button>
-                  <Button className="flex-1" onClick={onBooked}>Done</Button>
+                  <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
+                    <Send className="h-4 w-4 mr-1.5" /> Copy
+                  </Button>
                 </div>
+                <Button variant="secondary" size="sm" className="w-full" onClick={handleShareWhatsApp}>
+                  <Send className="h-4 w-4 mr-1.5" /> Share with Guard via WhatsApp
+                </Button>
+                <Button className="w-full" onClick={onBooked}>Done</Button>
               </div>
             )}
           </div>
@@ -322,6 +381,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
             {settings.rules.map((rule, i) => (
               <p key={i}>{i + 1}. {rule}</p>
             ))}
+            {settings.rulesPdfDataUrl && (
+              <div className="pt-3 border-t">
+                <Button variant="outline" size="sm" onClick={handleViewRulesPdf}>
+                  <FileText className="h-4 w-4 mr-1.5" /> Download Detailed Rules PDF
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
