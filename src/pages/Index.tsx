@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getActiveBookings, isDateAvailable, seedDummyData } from '@/lib/bookingStore';
+import { getActiveBookings, isDateAvailable, seedDummyData, getConflictingSlots, formatHour, getSlotTimes, HALL_LABELS, type Booking } from '@/lib/bookingStore';
 import BookingModal from '@/components/BookingModal';
 
 function getDaysInMonth(year: number, month: number) {
@@ -15,11 +15,106 @@ function getFirstDayOfMonth(year: number, month: number) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+function SlotDetails({ date, onBook, onClose }: { date: string; onBook: () => void; onClose: () => void }) {
+  const bookings = useMemo(() => {
+    return getActiveBookings().filter(b => b.date === date);
+  }, [date]);
+
+  const slotTimes = getSlotTimes();
+  const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Build a timeline of booked hours
+  const bookedRanges = bookings.map(b => {
+    if (b.timeSlot === 'custom') return { start: b.customStartHour!, end: b.customEndHour!, hall: b.hall, booking: b };
+    const st = slotTimes[b.timeSlot as keyof typeof slotTimes];
+    return { start: st.start, end: st.end, hall: b.hall, booking: b };
+  });
+
+  return (
+    <div className="bg-card rounded-xl shadow-card p-4 mt-4 animate-in fade-in slide-in-from-top-2">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-semibold text-sm flex items-center gap-1.5">
+          <Info className="h-4 w-4 text-primary" />
+          {formattedDate} — Slot Details
+        </h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Booked slots */}
+      {bookings.length > 0 && (
+        <div className="space-y-2 mb-3">
+          <p className="text-xs font-medium text-muted-foreground">Booked Slots:</p>
+          {bookedRanges.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+              <div className="w-2 h-2 rounded-full bg-destructive shrink-0" />
+              <div className="flex-1 text-xs">
+                <span className="font-medium text-foreground">{formatHour(r.start)} – {formatHour(r.end)}</span>
+                <span className="text-muted-foreground ml-2">• {HALL_LABELS[r.hall]}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">{r.booking.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Available windows */}
+      {(() => {
+        const open = slotTimes.full.start;
+        const close = slotTimes.full.end;
+        // Find free windows per hall
+        const halls: ('b-wing' | 'c-wing')[] = ['b-wing', 'c-wing'];
+        const freeSlots: { hall: string; start: number; end: number }[] = [];
+
+        halls.forEach(hall => {
+          const hallBookings = bookedRanges
+            .filter(r => r.hall === hall || r.hall === 'both')
+            .sort((a, b) => a.start - b.start);
+
+          let cursor = open;
+          hallBookings.forEach(b => {
+            if (b.start > cursor) {
+              freeSlots.push({ hall: HALL_LABELS[hall], start: cursor, end: b.start });
+            }
+            cursor = Math.max(cursor, b.end);
+          });
+          if (cursor < close) {
+            freeSlots.push({ hall: HALL_LABELS[hall], start: cursor, end: close });
+          }
+        });
+
+        if (freeSlots.length === 0) return null;
+
+        return (
+          <div className="space-y-2 mb-3">
+            <p className="text-xs font-medium text-muted-foreground">Available Windows:</p>
+            {freeSlots.map((s, i) => (
+              <div key={i} className="flex items-center gap-2 bg-success/5 border border-success/20 rounded-lg px-3 py-2">
+                <div className="w-2 h-2 rounded-full bg-success shrink-0" />
+                <div className="flex-1 text-xs">
+                  <span className="font-medium text-foreground">{formatHour(s.start)} – {formatHour(s.end)}</span>
+                  <span className="text-muted-foreground ml-2">• {s.hall}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      <Button size="sm" className="w-full" onClick={onBook}>
+        Book This Date
+      </Button>
+    </div>
+  );
+}
+
 export default function Index() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [previewDate, setPreviewDate] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => { seedDummyData(); }, []);
@@ -44,6 +139,7 @@ export default function Index() {
     if (m < 0) { m = 11; y--; }
     if (m > 11) { m = 0; y++; }
     setMonth(m); setYear(y);
+    setPreviewDate(null);
   }
 
   function dateStr(day: number) {
@@ -58,6 +154,18 @@ export default function Index() {
     const slots = bookedDates[ds];
     if (!slots) return 'available';
     return 'partial';
+  }
+
+  function handleDayClick(day: number) {
+    const status = getStatus(day);
+    if (status === 'past' || status === 'booked') return;
+    const ds = dateStr(day);
+    if (status === 'partial') {
+      setPreviewDate(prev => prev === ds ? null : ds);
+    } else {
+      setPreviewDate(null);
+      setSelectedDate(ds);
+    }
   }
 
   return (
@@ -89,17 +197,18 @@ export default function Index() {
             const day = i + 1;
             const status = getStatus(day);
             const isToday = dateStr(day) === todayStr;
+            const isPreview = previewDate === dateStr(day);
             return (
               <button
                 key={day}
                 disabled={status === 'past' || status === 'booked'}
-                onClick={() => { if (status !== 'past' && status !== 'booked') setSelectedDate(dateStr(day)); }}
+                onClick={() => handleDayClick(day)}
                 className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all ${
                   status === 'past' ? 'text-muted-foreground/40 cursor-default' :
                   status === 'booked' ? 'bg-destructive/10 text-destructive cursor-not-allowed' :
                   status === 'partial' ? 'bg-warning/10 text-warning hover:shadow-card-hover cursor-pointer' :
                   'bg-success/10 text-success hover:shadow-card-hover cursor-pointer'
-                } ${isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                } ${isToday ? 'ring-2 ring-primary ring-offset-1' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-1' : ''}`}
               >
                 <span>{day}</span>
                 {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 opacity-60" />}
@@ -112,10 +221,19 @@ export default function Index() {
         {/* Legend */}
         <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground justify-center">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-success/20" /> Available</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-warning/20" /> Partial</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-warning/20" /> Partial (tap to see slots)</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/20" /> Booked</span>
         </div>
       </div>
+
+      {/* Slot details panel for partial dates */}
+      {previewDate && (
+        <SlotDetails
+          date={previewDate}
+          onBook={() => { setSelectedDate(previewDate); setPreviewDate(null); }}
+          onClose={() => setPreviewDate(null)}
+        />
+      )}
 
       {selectedDate && (
         <BookingModal

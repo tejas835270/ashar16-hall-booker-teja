@@ -2,6 +2,8 @@ const SETTINGS_KEY = 'community_hall_settings';
 
 export interface HallSettings {
   rules: string[];
+  rulesPdfDataUrl?: string; // base64 data URL for uploaded PDF
+  rulesPdfName?: string;
   hallOpenTime: number; // hour 0-23
   hallCloseTime: number;
   maxCustomHours: number;
