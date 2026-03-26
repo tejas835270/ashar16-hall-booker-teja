@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { getSettings } from './settingsStore';
 
 export type HallOption = 'b-wing' | 'c-wing' | 'both';
 export type UserType = 'resident' | 'tenant';
@@ -11,8 +12,8 @@ export interface Booking {
   eventType: string;
   date: string; // YYYY-MM-DD
   timeSlot: TimeSlot;
-  customStartHour?: number; // 8-16 for custom slots
-  customEndHour?: number;   // 10-22 for custom slots
+  customStartHour?: number;
+  customEndHour?: number;
   hall: HallOption;
   userType: UserType;
   memberCount: number;
@@ -23,11 +24,28 @@ export interface Booking {
   createdAt: string;
 }
 
-export const SLOT_TIMES: Record<Exclude<TimeSlot, 'custom'>, { start: number; end: number; label: string }> = {
+export function getSlotTimes() {
+  const s = getSettings();
+  return {
+    'full': { start: s.hallOpenTime, end: s.hallCloseTime, label: `Full Day (${formatHour(s.hallOpenTime)} – ${formatHour(s.hallCloseTime)})` },
+    'half-slot1': { start: s.hallOpenTime, end: s.hallOpenTime + Math.floor((s.hallCloseTime - s.hallOpenTime) / 2), label: `Half Day Slot 1 (${formatHour(s.hallOpenTime)} – ${formatHour(s.hallOpenTime + Math.floor((s.hallCloseTime - s.hallOpenTime) / 2))})` },
+    'half-slot2': { start: s.hallCloseTime - Math.floor((s.hallCloseTime - s.hallOpenTime) / 2), end: s.hallCloseTime, label: `Half Day Slot 2 (${formatHour(s.hallCloseTime - Math.floor((s.hallCloseTime - s.hallOpenTime) / 2))} – ${formatHour(s.hallCloseTime)})` },
+  } as const;
+}
+
+// Keep static reference for backward compat
+export const SLOT_TIMES = {
   'full': { start: 8, end: 22, label: 'Full Day (8:00 AM – 10:00 PM)' },
   'half-slot1': { start: 8, end: 14, label: 'Half Day Slot 1 (8:00 AM – 2:00 PM)' },
   'half-slot2': { start: 16, end: 22, label: 'Half Day Slot 2 (4:00 PM – 10:00 PM)' },
 };
+
+export function getHallLabels(): Record<string, string> {
+  const s = getSettings();
+  const labels: Record<string, string> = {};
+  s.halls.forEach(h => { labels[h.key] = h.label; });
+  return labels;
+}
 
 export const HALL_LABELS: Record<HallOption, string> = {
   'b-wing': 'B-Wing Hall',
@@ -35,14 +53,22 @@ export const HALL_LABELS: Record<HallOption, string> = {
   'both': 'Both (B & C Wing)',
 };
 
+export function getDynamicPricing() {
+  return getSettings().pricing;
+}
+
 export const PRICING: Record<UserType, { full: number; half: number }> = {
   resident: { full: 7000, half: 4000 },
   tenant: { full: 8000, half: 5000 },
 };
 
 export function getRent(userType: UserType, timeSlot: TimeSlot): number {
-  const p = PRICING[userType];
+  const p = getDynamicPricing()[userType];
   return timeSlot === 'full' ? p.full : p.half;
+}
+
+export function getDynamicDeposit(): number {
+  return getSettings().deposit;
 }
 
 export const DEPOSIT = 2000;
@@ -80,7 +106,9 @@ export function getBookingsForDate(date: string, hall?: HallOption): Booking[] {
 
 function getSlotRange(b: Booking): { start: number; end: number } {
   if (b.timeSlot === 'custom') return { start: b.customStartHour || 8, end: b.customEndHour || 14 };
-  return SLOT_TIMES[b.timeSlot];
+  const slots = getSlotTimes();
+  const s = slots[b.timeSlot as keyof typeof slots];
+  return s || { start: 8, end: 22 };
 }
 
 export function getConflictingSlots(date: string, hall: HallOption): Booking[] {
@@ -94,9 +122,10 @@ export function getConflictingSlots(date: string, hall: HallOption): Booking[] {
 
 export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSlot, customStart?: number, customEnd?: number): boolean {
   const conflicts = getConflictingSlots(date, hall);
+  const slots = getSlotTimes();
   const newRange = timeSlot === 'custom'
     ? { start: customStart || 8, end: customEnd || 14 }
-    : SLOT_TIMES[timeSlot];
+    : slots[timeSlot];
 
   return !conflicts.some(b => {
     const existing = getSlotRange(b);
@@ -106,10 +135,8 @@ export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSl
 
 export function isDateAvailable(date: string): boolean {
   const active = getActiveBookings().filter(b => b.date === date);
-  // If any full-day booking exists for both halls, fully booked
   const fullBoth = active.some(b => b.timeSlot === 'full' && b.hall === 'both');
   if (fullBoth) return false;
-  // Check if both individual halls are fully booked for full day
   const fullB = active.some(b => b.timeSlot === 'full' && (b.hall === 'b-wing' || b.hall === 'both'));
   const fullC = active.some(b => b.timeSlot === 'full' && (b.hall === 'c-wing' || b.hall === 'both'));
   if (fullB && fullC) return false;
@@ -160,7 +187,6 @@ export function formatHour(h: number): string {
   return `${h - 12}:00 PM`;
 }
 
-// Seed some dummy bookings
 export function seedDummyData() {
   if (loadBookings().length > 0) return;
   const today = new Date();
@@ -183,7 +209,7 @@ export function seedDummyData() {
       userType: d.userType,
       memberCount: d.memberCount,
       rent: getRent(d.userType, d.timeSlot),
-      deposit: DEPOSIT,
+      deposit: getDynamicDeposit(),
     });
   });
 }
