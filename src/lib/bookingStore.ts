@@ -9,6 +9,7 @@ export interface Booking {
   id: string;
   flatNumber: string;
   name: string;
+  phone?: string;
   eventType: string;
   date: string; // YYYY-MM-DD
   timeSlot: TimeSlot;
@@ -22,6 +23,9 @@ export interface Booking {
   total: number;
   status: 'confirmed' | 'cancelled';
   createdAt: string;
+  paymentScreenshot?: string; // base64 data URL
+  penaltyAmount?: number;
+  penaltyReason?: string;
 }
 
 export function getSlotTimes() {
@@ -33,7 +37,6 @@ export function getSlotTimes() {
   } as const;
 }
 
-// Keep static reference for backward compat
 export const SLOT_TIMES = {
   'full': { start: 8, end: 22, label: 'Full Day (8:00 AM – 10:00 PM)' },
   'half-slot1': { start: 8, end: 14, label: 'Half Day Slot 1 (8:00 AM – 2:00 PM)' },
@@ -120,8 +123,8 @@ export function getConflictingSlots(date: string, hall: HallOption): Booking[] {
   });
 }
 
-export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSlot, customStart?: number, customEnd?: number): boolean {
-  const conflicts = getConflictingSlots(date, hall);
+export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSlot, customStart?: number, customEnd?: number, excludeId?: string): boolean {
+  const conflicts = getConflictingSlots(date, hall).filter(b => b.id !== excludeId);
   const slots = getSlotTimes();
   const newRange = timeSlot === 'custom'
     ? { start: customStart || 8, end: customEnd || 14 }
@@ -155,6 +158,21 @@ export function createBooking(data: Omit<Booking, 'id' | 'total' | 'status' | 'c
   bookings.push(booking);
   saveBookings(bookings);
   return booking;
+}
+
+export function updateBooking(id: string, updates: Partial<Booking>): boolean {
+  const bookings = loadBookings();
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return false;
+  const old = bookings[idx];
+  const updated = { ...old, ...updates };
+  // Recalculate total if rent or deposit changed
+  if (updates.rent !== undefined || updates.deposit !== undefined) {
+    updated.total = (updates.rent ?? old.rent) + (updates.deposit ?? old.deposit);
+  }
+  bookings[idx] = updated;
+  saveBookings(bookings);
+  return true;
 }
 
 export function cancelBooking(id: string): boolean {
@@ -191,10 +209,10 @@ export function seedDummyData() {
   if (loadBookings().length > 0) return;
   const today = new Date();
   const dummies = [
-    { flatNumber: 'A-101', name: 'Raj Sharma', eventType: 'Birthday Party', daysOffset: 3, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 30 },
-    { flatNumber: 'B-204', name: 'Priya Patel', eventType: 'Anniversary', daysOffset: 7, timeSlot: 'half-slot1' as const, hall: 'c-wing' as const, userType: 'tenant' as const, memberCount: 20 },
-    { flatNumber: 'C-302', name: 'Amit Singh', eventType: 'Meeting', daysOffset: 12, timeSlot: 'full' as const, hall: 'both' as const, userType: 'resident' as const, memberCount: 50 },
-    { flatNumber: 'A-405', name: 'Sneha Gupta', eventType: 'Pooja', daysOffset: 18, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 40 },
+    { flatNumber: 'A-101', name: 'Raj Sharma', phone: '9876543210', eventType: 'Birthday Party', daysOffset: 3, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 30 },
+    { flatNumber: 'B-204', name: 'Priya Patel', phone: '9876543211', eventType: 'Anniversary', daysOffset: 7, timeSlot: 'half-slot1' as const, hall: 'c-wing' as const, userType: 'tenant' as const, memberCount: 20 },
+    { flatNumber: 'C-302', name: 'Amit Singh', phone: '9876543212', eventType: 'Meeting', daysOffset: 12, timeSlot: 'full' as const, hall: 'both' as const, userType: 'resident' as const, memberCount: 50 },
+    { flatNumber: 'A-405', name: 'Sneha Gupta', phone: '9876543213', eventType: 'Pooja', daysOffset: 18, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 40 },
   ];
   dummies.forEach(d => {
     const date = new Date(today);
@@ -202,6 +220,7 @@ export function seedDummyData() {
     createBooking({
       flatNumber: d.flatNumber,
       name: d.name,
+      phone: d.phone,
       eventType: d.eventType,
       date: date.toISOString().split('T')[0],
       timeSlot: d.timeSlot,

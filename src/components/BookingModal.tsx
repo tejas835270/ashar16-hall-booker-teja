@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText } from 'lucide-react';
+import { useState, useMemo, useRef } from 'react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,7 @@ function buildGuardMessage(booking: Booking): string {
     `⏰ Slot: ${slotLabel}`,
     `🏠 Flat: ${booking.flatNumber}`,
     `👤 Name: ${booking.name}`,
+    `📱 Phone: ${booking.phone || '—'}`,
     `🎉 Event: ${booking.eventType}`,
     `👥 Attendees: ${booking.memberCount}`,
     ``,
@@ -54,6 +55,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [step, setStep] = useState<Step>('form');
   const [flatNumber, setFlatNumber] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [eventType, setEventType] = useState('');
   const [memberCount, setMemberCount] = useState('');
   const [hall, setHall] = useState<HallOption>('b-wing');
@@ -65,6 +67,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [paying, setPaying] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   const settings = getSettings();
   const slotTimes = getSlotTimes();
@@ -86,19 +90,41 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     return isSlotAvailable(date, hall, timeSlot);
   }, [date, hall, timeSlot, customStart, customEnd, customValid]);
 
-  const formValid = flatNumber.trim() && name.trim() && eventType.trim() && parseInt(memberCount) > 0 && agreed && slotAvailable && customValid;
+  const formValid = flatNumber.trim() && name.trim() && phone.trim() && eventType.trim() && parseInt(memberCount) > 0 && agreed && slotAvailable && customValid;
 
   function handleSubmitForm() {
     if (!formValid) return;
     setStep('payment');
   }
 
+  function handleScreenshotUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPaymentScreenshot(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
   function handlePay() {
+    if (!paymentScreenshot) {
+      toast.error('Please upload payment screenshot to proceed');
+      return;
+    }
     setPaying(true);
     setTimeout(() => {
       const b = createBooking({
         flatNumber: flatNumber.trim(),
         name: name.trim(),
+        phone: phone.trim(),
         eventType: eventType.trim(),
         date,
         timeSlot,
@@ -108,6 +134,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
         memberCount: parseInt(memberCount),
         rent,
         deposit,
+        paymentScreenshot: paymentScreenshot || undefined,
       });
       setBooking(b);
       setPaying(false);
@@ -148,6 +175,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     return slotTimes[s].label;
   };
 
+  const showQr = settings.paymentMode === 'qr' || settings.paymentMode === 'both';
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4" onClick={onClose}>
@@ -174,19 +203,23 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="flat">Flat Number</Label>
+                  <Label htmlFor="flat">Flat Number *</Label>
                   <Input id="flat" placeholder="e.g. A-101" value={flatNumber} onChange={e => setFlatNumber(e.target.value)} maxLength={10} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="name">Full Name *</Label>
                   <Input id="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} maxLength={50} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="event">Event Type</Label>
+                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => setPhone(e.target.value)} type="tel" maxLength={15} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="event">Event Type *</Label>
                   <Input id="event" placeholder="e.g. Birthday Party" value={eventType} onChange={e => setEventType(e.target.value)} maxLength={40} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="members">Member Count (Attendees)</Label>
+                  <Label htmlFor="members">Member Count (Attendees) *</Label>
                   <Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} />
                 </div>
 
@@ -306,19 +339,50 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <div className="border-t pt-2 flex justify-between font-semibold"><span>Total</span><span>₹{(rent + deposit).toLocaleString('en-IN')}</span></div>
                 </div>
 
-                <div className="bg-accent rounded-lg p-4 space-y-3">
-                  <p className="text-sm font-medium flex items-center gap-2"><CreditCard className="h-4 w-4" /> Payment Details (Mock)</p>
-                  <Input placeholder="Card Number" disabled />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input placeholder="MM/YY" disabled />
-                    <Input placeholder="CVC" disabled />
+                {/* QR Code for payment */}
+                {showQr && (
+                  <div className="bg-accent rounded-lg p-4 space-y-3 text-center">
+                    <p className="text-sm font-medium flex items-center justify-center gap-2"><CreditCard className="h-4 w-4" /> Scan QR to Pay</p>
+                    {settings.paymentQrDataUrl ? (
+                      <img src={settings.paymentQrDataUrl} alt="Payment QR" className="mx-auto max-w-[200px] rounded-lg" />
+                    ) : settings.upiId ? (
+                      <div className="bg-white p-3 rounded-lg inline-block">
+                        <QRCode value={`upi://pay?pa=${settings.upiId}&am=${rent + deposit}&cu=INR`} size={180} />
+                      </div>
+                    ) : (
+                      <div className="bg-white p-3 rounded-lg inline-block">
+                        <QRCode value={`upi://pay?am=${rent + deposit}&cu=INR`} size={180} />
+                      </div>
+                    )}
+                    {settings.upiId && <p className="text-xs text-muted-foreground">UPI: {settings.upiId}</p>}
                   </div>
+                )}
+
+                {/* Screenshot Upload */}
+                <div className="bg-accent rounded-lg p-4 space-y-3">
+                  <p className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Upload Payment Screenshot *</p>
+                  {paymentScreenshot ? (
+                    <div className="relative">
+                      <img src={paymentScreenshot} alt="Payment screenshot" className="w-full max-h-40 object-contain rounded-lg" />
+                      <button
+                        onClick={() => setPaymentScreenshot(null)}
+                        className="absolute top-1 right-1 bg-card rounded-full p-1 shadow"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full" onClick={() => screenshotInputRef.current?.click()}>
+                      <Upload className="h-4 w-4 mr-1.5" /> Choose Image
+                    </Button>
+                  )}
+                  <input ref={screenshotInputRef} type="file" accept="image/*" className="hidden" onChange={handleScreenshotUpload} />
                 </div>
 
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>Back</Button>
-                  <Button className="flex-1" onClick={handlePay} disabled={paying}>
-                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Pay ₹${(rent + deposit).toLocaleString('en-IN')}`}
+                  <Button className="flex-1" onClick={handlePay} disabled={paying || !paymentScreenshot}>
+                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm Payment`}
                   </Button>
                 </div>
               </div>
@@ -346,6 +410,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p><span className="text-muted-foreground">Hall:</span> {HALL_LABELS[booking.hall]}</p>
                   <p><span className="text-muted-foreground">Flat:</span> {booking.flatNumber}</p>
                   <p><span className="text-muted-foreground">Name:</span> {booking.name}</p>
+                  <p><span className="text-muted-foreground">Phone:</span> {booking.phone || '—'}</p>
                   <p><span className="text-muted-foreground">Event:</span> {booking.eventType}</p>
                   <p><span className="text-muted-foreground">Attendees:</span> {booking.memberCount}</p>
                   <p><span className="text-muted-foreground">Amount Paid:</span> ₹{booking.total.toLocaleString('en-IN')}</p>
