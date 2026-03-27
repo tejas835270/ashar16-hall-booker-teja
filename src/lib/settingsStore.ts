@@ -2,9 +2,9 @@ const SETTINGS_KEY = 'community_hall_settings';
 
 export interface HallSettings {
   rules: string[];
-  rulesPdfDataUrl?: string; // base64 data URL for uploaded PDF
+  rulesPdfDataUrl?: string;
   rulesPdfName?: string;
-  hallOpenTime: number; // hour 0-23
+  hallOpenTime: number;
   hallCloseTime: number;
   maxCustomHours: number;
   pricing: {
@@ -13,6 +13,10 @@ export interface HallSettings {
   };
   deposit: number;
   halls: { key: string; label: string }[];
+  // Payment settings
+  paymentMode: 'qr' | 'manual' | 'both';
+  upiId?: string;
+  paymentQrDataUrl?: string;
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
@@ -41,6 +45,8 @@ const DEFAULT_SETTINGS: HallSettings = {
     { key: 'c-wing', label: 'C-Wing Hall' },
     { key: 'both', label: 'Both (B & C Wing)' },
   ],
+  paymentMode: 'both',
+  upiId: '',
 };
 
 export function getSettings(): HallSettings {

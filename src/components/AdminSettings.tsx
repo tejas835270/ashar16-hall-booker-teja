@@ -1,15 +1,18 @@
 import { useState, useRef } from 'react';
-import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X } from 'lucide-react';
+import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSettings, saveSettings, getDefaultSettings, type HallSettings } from '@/lib/settingsStore';
 import { toast } from 'sonner';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<HallSettings>(getSettings);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const qrInputRef = useRef<HTMLInputElement>(null);
 
   function handleSave() {
     saveSettings(settings);
@@ -72,8 +75,74 @@ export default function AdminSettings() {
     setSettings({ ...settings, rulesPdfDataUrl: undefined, rulesPdfName: undefined });
   }
 
+  function handleQrUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSettings({ ...settings, paymentQrDataUrl: reader.result as string });
+      toast.success('QR code uploaded');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
   return (
     <div className="space-y-6">
+      {/* Payment Settings */}
+      <div className="bg-card rounded-xl shadow-card p-5">
+        <h3 className="font-semibold text-base mb-4">Payment Settings</h3>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Payment Mode</Label>
+            <Select value={settings.paymentMode} onValueChange={v => setSettings({ ...settings, paymentMode: v as HallSettings['paymentMode'] })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="qr">QR Code Only</SelectItem>
+                <SelectItem value="manual">Manual / Screenshot Only</SelectItem>
+                <SelectItem value="both">Both (QR + Screenshot)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>UPI ID</Label>
+            <Input
+              placeholder="e.g. society@upi"
+              value={settings.upiId || ''}
+              onChange={e => setSettings({ ...settings, upiId: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">Auto-generates a UPI QR code if no custom QR is uploaded.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Custom Payment QR Code (optional)</Label>
+            {settings.paymentQrDataUrl ? (
+              <div className="flex items-center gap-3 bg-accent rounded-lg p-3">
+                <img src={settings.paymentQrDataUrl} alt="QR" className="h-16 w-16 rounded object-contain" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Custom QR uploaded</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => setSettings({ ...settings, paymentQrDataUrl: undefined })}>
+                  <X className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => qrInputRef.current?.click()}>
+                <Image className="h-4 w-4 mr-1.5" /> Upload QR Image
+              </Button>
+            )}
+            <input ref={qrInputRef} type="file" accept="image/*" className="hidden" onChange={handleQrUpload} />
+          </div>
+        </div>
+      </div>
+
       {/* Hall Timings */}
       <div className="bg-card rounded-xl shadow-card p-5">
         <h3 className="font-semibold text-base mb-4">Hall Timings</h3>
