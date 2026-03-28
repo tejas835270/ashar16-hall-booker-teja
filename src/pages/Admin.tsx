@@ -66,10 +66,6 @@ export default function Admin() {
     load();
   }, [authed, refreshKey]);
 
-  if (!authed) {
-    return <LoginForm expectedRole="admin" onSuccess={() => setAuthed(true)} />;
-  }
-
   const filteredBookings = useMemo(() => {
     let filtered = bookings;
     if (searchQuery.trim()) {
@@ -83,6 +79,10 @@ export default function Admin() {
     filtered.sort((a, b) => sortDir === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
     return filtered;
   }, [bookings, searchQuery, sortDir]);
+
+  if (!authed) {
+    return <LoginForm expectedRole="admin" onSuccess={() => setAuthed(true)} />;
+  }
 
   const activeBookings = bookings.filter(b => b.status === 'confirmed');
   const totalRevenue = activeBookings.reduce((s, b) => s + b.total, 0);
