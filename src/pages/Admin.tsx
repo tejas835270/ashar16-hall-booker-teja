@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from 'react';
-import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle } from 'lucide-react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,54 +8,95 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import {
-  getBookings, cancelBooking, HALL_LABELS, formatHour, getSlotTimes,
+  fetchBookings, cancelBooking, HALL_LABELS, formatHour, getSlotTimes,
   createBooking, updateBooking, getRent, getDynamicDeposit, isSlotAvailable,
-  type Booking, type HallOption, type UserType, type TimeSlot
+  fetchSettings, uploadFile,
+  type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
-import { getSettings } from '@/lib/settingsStore';
 import { getAuth, isAdmin, logout } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
 import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
 
 type Tab = 'bookings' | 'settings';
+type SortDir = 'asc' | 'desc';
+
+function getBookingTimeStatus(b: Booking): 'past' | 'current' | 'upcoming' {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const bDate = new Date(b.date + 'T00:00:00');
+  if (bDate < today) return 'past';
+  if (bDate.getTime() === today.getTime()) return 'current';
+  return 'upcoming';
+}
 
 export default function Admin() {
   const [authed, setAuthed] = useState(isAdmin());
   const [tab, setTab] = useState<Tab>('bookings');
   const [refreshKey, setRefreshKey] = useState(0);
-  const bookings = useMemo(() => getBookings(), [refreshKey]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [settings, setSettings] = useState<HallSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Search & sort
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   // Modal states
   const [showManualModal, setShowManualModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [viewScreenshot, setViewScreenshot] = useState<string | null>(null);
   const [penaltyBooking, setPenaltyBooking] = useState<Booking | null>(null);
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+
+  useEffect(() => {
+    if (!authed) return;
+    async function load() {
+      setLoading(true);
+      const [b, s] = await Promise.all([fetchBookings(), fetchSettings()]);
+      setBookings(b);
+      setSettings(s);
+      setLoading(false);
+    }
+    load();
+  }, [authed, refreshKey]);
 
   if (!authed) {
     return <LoginForm expectedRole="admin" onSuccess={() => setAuthed(true)} />;
   }
+
+  const filteredBookings = useMemo(() => {
+    let filtered = bookings;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(b =>
+        b.id.toLowerCase().includes(q) ||
+        b.name.toLowerCase().includes(q) ||
+        b.flatNumber.toLowerCase().includes(q)
+      );
+    }
+    filtered.sort((a, b) => sortDir === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+    return filtered;
+  }, [bookings, searchQuery, sortDir]);
 
   const activeBookings = bookings.filter(b => b.status === 'confirmed');
   const totalRevenue = activeBookings.reduce((s, b) => s + b.total, 0);
   const totalPenalties = bookings.reduce((s, b) => s + (b.penaltyAmount || 0), 0);
   const upcomingCount = activeBookings.filter(b => new Date(b.date) >= new Date(new Date().toDateString())).length;
 
-  function handleCancel(id: string) {
+  async function handleCancel(id: string) {
     if (confirm('Cancel this booking and process refund?')) {
-      cancelBooking(id);
+      await cancelBooking(id);
       setRefreshKey(k => k + 1);
     }
   }
 
-  function handleLogout() {
-    logout();
-    setAuthed(false);
-  }
+  function handleLogout() { logout(); setAuthed(false); }
 
   function formatDate(d: string) {
     return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -63,9 +104,32 @@ export default function Admin() {
 
   const slotLabel = (b: Booking) => {
     if (b.timeSlot === 'custom') return `${formatHour(b.customStartHour!)}–${formatHour(b.customEndHour!)}`;
-    const slots = getSlotTimes();
+    const slots = getSlotTimes(settings || undefined);
     return slots[b.timeSlot as keyof typeof slots]?.label?.replace(/\s*\(.*\)/, '') || b.timeSlot;
   };
+
+  const getStatusBadge = (b: Booking) => {
+    if (b.status === 'cancelled') return <Badge variant="destructive" className="text-xs">Cancelled</Badge>;
+    const ts = getBookingTimeStatus(b);
+    if (ts === 'past') return <Badge variant="secondary" className="text-xs opacity-60">Past</Badge>;
+    if (ts === 'current') return <Badge className="text-xs bg-success text-success-foreground">Active Today</Badge>;
+    return <Badge className="text-xs bg-primary text-primary-foreground">Upcoming</Badge>;
+  };
+
+  const getTypeBadge = (b: Booking) => {
+    if (b.bookingType === 'manual') return <Badge variant="outline" className="text-xs border-amber-400 text-amber-600"><Monitor className="h-3 w-3 mr-0.5" />Manual</Badge>;
+    return <Badge variant="outline" className="text-xs border-primary/40 text-primary"><Globe className="h-3 w-3 mr-0.5" />Online</Badge>;
+  };
+
+  const getRowClass = (b: Booking) => {
+    if (b.status === 'cancelled') return 'opacity-50';
+    const ts = getBookingTimeStatus(b);
+    if (ts === 'past') return 'opacity-40';
+    if (ts === 'current') return 'bg-success/5';
+    return '';
+  };
+
+  if (loading) return <div className="container mx-auto px-4 py-6 max-w-5xl text-center"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
@@ -73,26 +137,18 @@ export default function Admin() {
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-accent rounded-lg p-1">
-            <button
-              onClick={() => setTab('bookings')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            >
+            <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
-            <button
-              onClick={() => setTab('settings')}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-            >
+            <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <Settings className="h-4 w-4 inline mr-1.5" />Settings
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-1.5" /> Logout
-          </Button>
+          <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
         </div>
       </div>
 
-      {tab === 'settings' && <AdminSettings />}
+      {tab === 'settings' && settings && <AdminSettings initialSettings={settings} onSaved={() => setRefreshKey(k => k + 1)} />}
 
       {tab === 'bookings' && (
         <>
@@ -116,8 +172,20 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Manual Booking Button */}
-          <div className="flex justify-end mb-4">
+          {/* Search, Sort, Manual Booking */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by ID, Name, or Flat..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+              <ArrowUpDown className="h-4 w-4 mr-1.5" /> Date {sortDir === 'asc' ? '↑' : '↓'}
+            </Button>
             <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
               <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
             </Button>
@@ -138,16 +206,21 @@ export default function Admin() {
                     <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Penalty</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-center p-3 font-medium text-muted-foreground">Type</th>
                     <th className="p-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.length === 0 && (
-                    <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">No bookings yet</td></tr>
+                  {filteredBookings.length === 0 && (
+                    <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">No bookings found</td></tr>
                   )}
-                  {bookings.map(b => (
-                    <tr key={b.id} className="border-b last:border-0 hover:bg-accent/30 transition-colors">
-                      <td className="p-3 font-mono font-medium">{b.id}</td>
+                  {filteredBookings.map(b => (
+                    <tr key={b.id} className={`border-b last:border-0 hover:bg-accent/30 transition-colors ${getRowClass(b)}`}>
+                      <td className="p-3">
+                        <button onClick={() => setDetailBooking(b)} className="font-mono font-medium text-primary hover:underline cursor-pointer">
+                          {b.id}
+                        </button>
+                      </td>
                       <td className="p-3">{formatDate(b.date)}</td>
                       <td className="p-3">{b.flatNumber}</td>
                       <td className="p-3 hidden sm:table-cell">{b.name}</td>
@@ -155,31 +228,29 @@ export default function Admin() {
                       <td className="p-3">{slotLabel(b)}</td>
                       <td className="p-3 text-right">₹{b.total.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-right">
-                        {b.penaltyAmount ? (
-                          <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span>
-                        ) : '—'}
+                        {b.penaltyAmount ? <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span> : '—'}
                       </td>
-                      <td className="p-3 text-center">
-                        <Badge variant={b.status === 'confirmed' ? 'default' : 'destructive'} className="text-xs">
-                          {b.status === 'confirmed' ? 'Active' : 'Cancelled'}
-                        </Badge>
-                      </td>
+                      <td className="p-3 text-center">{getStatusBadge(b)}</td>
+                      <td className="p-3 text-center">{getTypeBadge(b)}</td>
                       <td className="p-3">
                         <div className="flex items-center gap-1">
-                          {b.paymentScreenshot && (
-                            <Button variant="ghost" size="icon" onClick={() => setViewScreenshot(b.paymentScreenshot!)} title="View Payment Screenshot">
+                          <Button variant="ghost" size="icon" onClick={() => setDetailBooking(b)} title="View Details">
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          {b.paymentScreenshotUrl && (
+                            <Button variant="ghost" size="icon" onClick={() => setViewScreenshot(b.paymentScreenshotUrl!)} title="View Payment">
                               <Camera className="h-4 w-4 text-primary" />
                             </Button>
                           )}
                           {b.status === 'confirmed' && (
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit Booking">
+                              <Button variant="ghost" size="icon" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit">
                                 <Pencil className="h-4 w-4 text-primary" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => setPenaltyBooking(b)} title="Add Penalty">
+                              <Button variant="ghost" size="icon" onClick={() => setPenaltyBooking(b)} title="Penalty">
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Cancel & Refund">
+                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Cancel">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </>
@@ -196,9 +267,10 @@ export default function Admin() {
       )}
 
       {/* Manual/Edit Booking Modal */}
-      {showManualModal && (
+      {showManualModal && settings && (
         <ManualBookingModal
           existingBooking={editingBooking}
+          settings={settings}
           onClose={() => { setShowManualModal(false); setEditingBooking(null); }}
           onSaved={() => { setShowManualModal(false); setEditingBooking(null); setRefreshKey(k => k + 1); }}
         />
@@ -212,6 +284,11 @@ export default function Admin() {
         </DialogContent>
       </Dialog>
 
+      {/* Detail View Modal */}
+      {detailBooking && (
+        <BookingDetailModal booking={detailBooking} settings={settings} onClose={() => setDetailBooking(null)} />
+      )}
+
       {/* Penalty Modal */}
       {penaltyBooking && (
         <PenaltyModal
@@ -224,9 +301,58 @@ export default function Admin() {
   );
 }
 
+// --- Booking Detail Modal ---
+function BookingDetailModal({ booking: b, settings, onClose }: { booking: Booking; settings: HallSettings | null; onClose: () => void }) {
+  const slotLabel = () => {
+    if (b.timeSlot === 'custom') return `${formatHour(b.customStartHour!)} – ${formatHour(b.customEndHour!)}`;
+    const slots = getSlotTimes(settings || undefined);
+    return slots[b.timeSlot as keyof typeof slots]?.label || b.timeSlot;
+  };
+  const formattedDate = new Date(b.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Booking Details — {b.id}</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div><span className="text-muted-foreground">Booking ID</span><p className="font-mono font-bold">{b.id}</p></div>
+            <div><span className="text-muted-foreground">Status</span><p className="font-medium capitalize">{b.status}</p></div>
+            <div><span className="text-muted-foreground">Type</span><p className="font-medium capitalize">{b.bookingType}</p></div>
+            <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formattedDate}</p></div>
+            <div><span className="text-muted-foreground">Hall</span><p className="font-medium">{HALL_LABELS[b.hall]}</p></div>
+            <div><span className="text-muted-foreground">Time Slot</span><p className="font-medium">{slotLabel()}</p></div>
+            <div><span className="text-muted-foreground">Flat</span><p className="font-medium">{b.flatNumber}</p></div>
+            <div><span className="text-muted-foreground">Name</span><p className="font-medium">{b.name}</p></div>
+            <div><span className="text-muted-foreground">Phone</span><p className="font-medium">{b.phone || '—'}</p></div>
+            <div><span className="text-muted-foreground">Event</span><p className="font-medium">{b.eventType}</p></div>
+            <div><span className="text-muted-foreground">Attendees</span><p className="font-medium">{b.memberCount}</p></div>
+            <div><span className="text-muted-foreground">User Type</span><p className="font-medium capitalize">{b.userType}</p></div>
+          </div>
+          <div className="border-t pt-3 space-y-1">
+            <div className="flex justify-between"><span className="text-muted-foreground">Hall Rent</span><span>₹{b.rent.toLocaleString('en-IN')}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Deposit</span><span>₹{b.deposit.toLocaleString('en-IN')}</span></div>
+            <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>₹{b.total.toLocaleString('en-IN')}</span></div>
+            {!!b.penaltyAmount && (
+              <div className="flex justify-between text-amber-600"><span>Penalty</span><span>₹{b.penaltyAmount.toLocaleString('en-IN')}</span></div>
+            )}
+            {b.penaltyReason && <p className="text-xs text-muted-foreground">Reason: {b.penaltyReason}</p>}
+          </div>
+          {b.paymentScreenshotUrl && (
+            <div className="border-t pt-3">
+              <p className="text-muted-foreground text-xs mb-2">Payment Screenshot:</p>
+              <img src={b.paymentScreenshotUrl} alt="Payment" className="w-full max-h-48 object-contain rounded-lg" />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">Created: {new Date(b.createdAt).toLocaleString('en-IN')}</p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Manual / Edit Booking Modal ---
-function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBooking: Booking | null; onClose: () => void; onSaved: () => void }) {
-  const settings = getSettings();
+function ManualBookingModal({ existingBooking, settings, onClose, onSaved }: { existingBooking: Booking | null; settings: HallSettings; onClose: () => void; onSaved: () => void }) {
   const isEdit = !!existingBooking;
 
   const [flatNumber, setFlatNumber] = useState(existingBooking?.flatNumber || '');
@@ -242,48 +368,82 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     existingBooking ? new Date(existingBooking.date + 'T00:00:00') : new Date()
   );
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(existingBooking?.paymentScreenshotUrl || null);
+  const [saving, setSaving] = useState(false);
+  const [available, setAvailable] = useState(true);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
 
-  const slotTimes = getSlotTimes();
-  const rent = getRent(userType, timeSlot);
-  const deposit = getDynamicDeposit();
+  const slotTimes = getSlotTimes(settings);
+  const rent = getRent(userType, timeSlot, settings);
+  const deposit = getDynamicDeposit(settings);
 
   const CUSTOM_HOURS = Array.from({ length: settings.hallCloseTime - settings.hallOpenTime + 1 }, (_, i) => i + settings.hallOpenTime);
 
-  const available = useMemo(() => {
-    if (!dateStr) return true;
-    if (timeSlot === 'custom') return isSlotAvailable(dateStr, hall, 'custom', customStart, customEnd, isEdit ? existingBooking!.id : undefined);
-    return isSlotAvailable(dateStr, hall, timeSlot, undefined, undefined, isEdit ? existingBooking!.id : undefined);
+  useEffect(() => {
+    async function check() {
+      if (!dateStr) { setAvailable(true); return; }
+      const result = timeSlot === 'custom'
+        ? await isSlotAvailable(dateStr, hall, 'custom', customStart, customEnd, isEdit ? existingBooking!.id : undefined)
+        : await isSlotAvailable(dateStr, hall, timeSlot, undefined, undefined, isEdit ? existingBooking!.id : undefined);
+      setAvailable(result);
+    }
+    check();
   }, [dateStr, hall, timeSlot, customStart, customEnd, isEdit, existingBooking]);
 
   const formValid = flatNumber.trim() && name.trim() && phone.trim() && eventType.trim() && parseInt(memberCount) > 0 && available && dateStr;
 
-  function handleSave() {
-    if (!formValid) return;
-    const data = {
-      flatNumber: flatNumber.trim(),
-      name: name.trim(),
-      phone: phone.trim(),
-      eventType: eventType.trim(),
-      date: dateStr,
-      timeSlot,
-      ...(timeSlot === 'custom' ? { customStartHour: customStart, customEndHour: customEnd } : {}),
-      hall,
-      userType,
-      memberCount: parseInt(memberCount),
-      rent,
-      deposit,
-    };
+  function handleScreenshotUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
+    setScreenshotFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setScreenshotPreview(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
 
-    if (isEdit) {
-      updateBooking(existingBooking!.id, data);
-      toast.success('Booking updated');
-    } else {
-      createBooking(data);
-      toast.success('Manual booking created');
+  async function handleSave() {
+    if (!formValid) return;
+    setSaving(true);
+    try {
+      let screenshotUrl = existingBooking?.paymentScreenshotUrl;
+      if (screenshotFile) {
+        screenshotUrl = await uploadFile(screenshotFile, 'payment-screenshots') || undefined;
+      }
+
+      const data = {
+        flatNumber: flatNumber.trim(),
+        name: name.trim(),
+        phone: phone.trim(),
+        eventType: eventType.trim(),
+        date: dateStr,
+        timeSlot,
+        ...(timeSlot === 'custom' ? { customStartHour: customStart, customEndHour: customEnd } : {}),
+        hall,
+        userType,
+        memberCount: parseInt(memberCount),
+        rent,
+        deposit,
+        paymentScreenshotUrl: screenshotUrl,
+      };
+
+      if (isEdit) {
+        await updateBooking(existingBooking!.id, data);
+        toast.success('Booking updated');
+      } else {
+        await createBooking({ ...data, bookingType: 'manual' });
+        toast.success('Manual booking created');
+      }
+      onSaved();
+    } catch (err) {
+      toast.error('Failed to save booking');
+    } finally {
+      setSaving(false);
     }
-    onSaved();
   }
 
   return (
@@ -293,7 +453,6 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
           <DialogTitle>{isEdit ? 'Edit Booking' : 'Manual Booking'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          {/* Date Picker */}
           <div className="space-y-1.5">
             <Label>Date</Label>
             <Popover>
@@ -304,31 +463,17 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className={cn("p-3 pointer-events-auto")} />
+                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus className="p-3 pointer-events-auto" />
               </PopoverContent>
             </Popover>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Flat Number *</Label>
-            <Input value={flatNumber} onChange={e => setFlatNumber(e.target.value)} placeholder="e.g. A-101" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Full Name *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Name" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Phone Number *</Label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 9876543210" type="tel" maxLength={15} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Event Type *</Label>
-            <Input value={eventType} onChange={e => setEventType(e.target.value)} placeholder="e.g. Birthday" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Member Count *</Label>
-            <Input type="number" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} />
-          </div>
+          <div className="space-y-1.5"><Label>Flat Number *</Label><Input value={flatNumber} onChange={e => setFlatNumber(e.target.value)} placeholder="e.g. A-101" /></div>
+          <div className="space-y-1.5"><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Name" /></div>
+          <div className="space-y-1.5"><Label>Phone Number *</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 9876543210" type="tel" maxLength={15} /></div>
+          <div className="space-y-1.5"><Label>Event Type *</Label><Input value={eventType} onChange={e => setEventType(e.target.value)} placeholder="e.g. Birthday" /></div>
+          <div className="space-y-1.5"><Label>Member Count *</Label><Input type="number" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} /></div>
+
           <div className="space-y-1.5">
             <Label>User Type</Label>
             <Select value={userType} onValueChange={v => setUserType(v as UserType)}>
@@ -390,6 +535,24 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
             </div>
           )}
 
+          {/* Optional payment screenshot for manual bookings */}
+          <div className="space-y-1.5">
+            <Label>Payment Screenshot (optional)</Label>
+            {screenshotPreview ? (
+              <div className="relative">
+                <img src={screenshotPreview} alt="Screenshot" className="w-full max-h-32 object-contain rounded-lg" />
+                <button onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); }} className="absolute top-1 right-1 bg-card rounded-full p-1 shadow">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => screenshotInputRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-1.5" /> Upload
+              </Button>
+            )}
+            <input ref={screenshotInputRef} type="file" accept="image/*" className="hidden" onChange={handleScreenshotUpload} />
+          </div>
+
           {!available && <p className="text-sm text-destructive font-medium">Slot conflicts with an existing booking.</p>}
 
           <div className="bg-accent rounded-lg p-3 text-sm">
@@ -400,8 +563,8 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
 
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button className="flex-1" disabled={!formValid} onClick={handleSave}>
-              {isEdit ? 'Update Booking' : 'Create Booking'}
+            <Button className="flex-1" disabled={!formValid || saving} onClick={handleSave}>
+              {saving ? 'Saving...' : isEdit ? 'Update Booking' : 'Create Booking'}
             </Button>
           </div>
         </div>
@@ -414,34 +577,29 @@ function ManualBookingModal({ existingBooking, onClose, onSaved }: { existingBoo
 function PenaltyModal({ booking, onClose, onSaved }: { booking: Booking; onClose: () => void; onSaved: () => void }) {
   const [amount, setAmount] = useState(String(booking.penaltyAmount || ''));
   const [reason, setReason] = useState(booking.penaltyReason || '');
+  const [saving, setSaving] = useState(false);
 
-  function handleSave() {
-    updateBooking(booking.id, {
+  async function handleSave() {
+    setSaving(true);
+    await updateBooking(booking.id, {
       penaltyAmount: parseInt(amount) || 0,
       penaltyReason: reason.trim(),
     });
     toast.success('Penalty updated');
+    setSaving(false);
     onSaved();
   }
 
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Penalty — {booking.id}</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>Penalty — {booking.id}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Penalty Amount (₹)</Label>
-            <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={0} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Reason</Label>
-            <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Property damage" />
-          </div>
+          <div className="space-y-1.5"><Label>Penalty Amount (₹)</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={0} /></div>
+          <div className="space-y-1.5"><Label>Reason</Label><Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Property damage" /></div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-            <Button className="flex-1" onClick={handleSave}>Save Penalty</Button>
+            <Button className="flex-1" disabled={saving} onClick={handleSave}>{saving ? 'Saving...' : 'Save Penalty'}</Button>
           </div>
         </div>
       </DialogContent>

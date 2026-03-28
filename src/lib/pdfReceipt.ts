@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
-import { type Booking, HALL_LABELS, SLOT_TIMES, formatHour } from './bookingStore';
+import { type Booking, HALL_LABELS, getSlotTimes, formatHour } from './bookingStore';
 
-export function downloadBookingPDF(booking: Booking) {
+export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const margin = 20;
@@ -38,9 +38,10 @@ export function downloadBookingPDF(booking: Booking) {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  const slots = getSlotTimes();
   const slotLabel = booking.timeSlot === 'custom'
     ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
-    : SLOT_TIMES[booking.timeSlot as keyof typeof SLOT_TIMES]?.label || booking.timeSlot;
+    : slots[booking.timeSlot as keyof typeof slots]?.label || booking.timeSlot;
 
   const hallLabel = HALL_LABELS[booking.hall] || booking.hall;
 
@@ -50,9 +51,11 @@ export function downloadBookingPDF(booking: Booking) {
     ['Time Slot', slotLabel],
     ['Flat Number', booking.flatNumber],
     ['Booked By', booking.name],
+    ['Phone', booking.phone || '—'],
     ['Event Type', booking.eventType],
     ['Attendees', String(booking.memberCount)],
     ['User Type', booking.userType.charAt(0).toUpperCase() + booking.userType.slice(1)],
+    ['Booking Type', booking.bookingType === 'manual' ? 'Manual (Admin)' : 'Online'],
   ];
 
   const colX = margin;
@@ -100,6 +103,27 @@ export function downloadBookingPDF(booking: Booking) {
   doc.text(`₹${booking.total.toLocaleString('en-IN')}`, w - margin - 5, y + 2, { align: 'right' });
 
   y += 20;
+
+  // QR Code section - generate a simple text-based QR indicator
+  if (verificationUrl) {
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'F');
+    doc.setDrawColor(200, 210, 225);
+    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'S');
+    y += 8;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 64, 120);
+    doc.setFontSize(10);
+    doc.text('Verification QR Code', margin + 5, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8);
+    doc.text(`Scan QR or visit: ${verificationUrl}`, margin + 5, y);
+    y += 6;
+    doc.text(`Booking ID: ${booking.id}`, margin + 5, y);
+    y += 14;
+  }
 
   // Note
   doc.setFontSize(9);
