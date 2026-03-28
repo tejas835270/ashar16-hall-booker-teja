@@ -1,58 +1,84 @@
-import { useState, useMemo } from 'react';
-import { ScanLine, ShieldCheck, ShieldX, LogOut, Clock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ScanLine, ShieldCheck, ShieldX, ShieldAlert, LogOut, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { validateBooking, getBookings, HALL_LABELS, SLOT_TIMES, formatHour, getSlotTimes, type Booking } from '@/lib/bookingStore';
-import { getAuth, isGuard, logout } from '@/lib/authStore';
+import { validateBooking, fetchBookings, HALL_LABELS, formatHour, getSlotTimes, fetchSettings, type Booking, type HallSettings } from '@/lib/bookingStore';
+import { isGuard, logout } from '@/lib/authStore';
 import LoginForm from '@/components/LoginForm';
+import { useSearchParams } from 'react-router-dom';
 
-type Result = null | { valid: true; booking: Booking } | { valid: false };
+type Result = null | { valid: true; booking: Booking; isUpcoming?: boolean } | { valid: false };
 
 export default function Guard() {
   const [authed, setAuthed] = useState(isGuard());
   const [bookingId, setBookingId] = useState('');
   const [result, setResult] = useState<Result>(null);
   const [scannedIds, setScannedIds] = useState<string[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [settings, setSettings] = useState<HallSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [validating, setValidating] = useState(false);
+  const [searchParams] = useSearchParams();
 
-  const allBookings = useMemo(() => getBookings().filter(b => b.status === 'confirmed'), [authed]);
   const todayStr = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    if (!authed) return;
+    async function load() {
+      setLoading(true);
+      const [b, s] = await Promise.all([fetchBookings(), fetchSettings()]);
+      setAllBookings(b.filter(bk => bk.status === 'confirmed'));
+      setSettings(s);
+      setLoading(false);
+    }
+    load();
+  }, [authed]);
+
+  // Auto-verify from QR code URL parameter
+  useEffect(() => {
+    const verifyId = searchParams.get('verify');
+    if (verifyId && authed && !loading) {
+      setBookingId(verifyId.toUpperCase());
+      handleValidateId(verifyId.toUpperCase());
+    }
+  }, [searchParams, authed, loading]);
 
   if (!authed) {
     return <LoginForm expectedRole="guard" onSuccess={() => setAuthed(true)} />;
   }
 
-  function handleValidate() {
-    if (!bookingId.trim()) return;
-    const id = bookingId.trim().toUpperCase();
-    const res = validateBooking(id);
+  async function handleValidateId(id: string) {
+    if (!id.trim()) return;
+    setValidating(true);
+    const res = await validateBooking(id.trim().toUpperCase());
     if (res.valid && res.booking) {
-      setResult({ valid: true, booking: res.booking });
+      setResult({ valid: true, booking: res.booking, isUpcoming: res.isUpcoming });
       setScannedIds(prev => prev.includes(id) ? prev : [id, ...prev]);
     } else {
       setResult({ valid: false });
     }
+    setValidating(false);
   }
 
-  function handleReset() {
-    setBookingId('');
-    setResult(null);
+  async function handleValidate() {
+    await handleValidateId(bookingId);
   }
 
-  function handleLogout() {
-    logout();
-    setAuthed(false);
-  }
+  function handleReset() { setBookingId(''); setResult(null); }
+  function handleLogout() { logout(); setAuthed(false); }
 
   const slotLabel = (b: Booking) => {
     if (b.timeSlot === 'custom') return `${formatHour(b.customStartHour!)} – ${formatHour(b.customEndHour!)}`;
-    const slots = getSlotTimes();
+    const slots = getSlotTimes(settings || undefined);
     return slots[b.timeSlot as keyof typeof slots]?.label || b.timeSlot;
   };
 
   const getBookingStatus = (b: Booking): 'valid' | 'upcoming' => {
     return b.date === todayStr ? 'valid' : 'upcoming';
   };
+
+  if (loading) return <div className="container mx-auto px-4 py-6 max-w-lg text-center"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-lg">
@@ -81,8 +107,8 @@ export default function Guard() {
               maxLength={8}
               onKeyDown={e => e.key === 'Enter' && handleValidate()}
             />
-            <Button className="w-full" onClick={handleValidate} disabled={!bookingId.trim()}>
-              Validate Booking
+            <Button className="w-full" onClick={handleValidate} disabled={!bookingId.trim() || validating}>
+              {validating ? 'Validating...' : 'Validate Booking'}
             </Button>
           </div>
         </div>
@@ -97,7 +123,24 @@ export default function Guard() {
         </div>
       )}
 
-      {result && result.valid && (
+      {result && result.valid && result.isUpcoming && (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-400 dark:border-amber-700 rounded-xl p-8 text-center space-y-3">
+          <ShieldAlert className="h-16 w-16 text-amber-600 mx-auto" />
+          <h2 className="text-2xl font-bold text-amber-600">UPCOMING BOOKING</h2>
+          <p className="text-amber-700 dark:text-amber-400 text-sm font-medium">This booking is for a future date. Entry is not permitted today.</p>
+          <div className="bg-card rounded-lg p-4 text-sm text-left space-y-1 mt-2">
+            <p><span className="text-muted-foreground">Booking ID:</span> <span className="font-mono font-bold">{result.booking.id}</span></p>
+            <p><span className="text-muted-foreground">Flat:</span> {result.booking.flatNumber}</p>
+            <p><span className="text-muted-foreground">Name:</span> {result.booking.name}</p>
+            <p><span className="text-muted-foreground">Date:</span> {new Date(result.booking.date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+            <p><span className="text-muted-foreground">Hall:</span> {HALL_LABELS[result.booking.hall] || '—'}</p>
+            <p><span className="text-muted-foreground">Slot:</span> {slotLabel(result.booking)}</p>
+          </div>
+          <Button variant="outline" onClick={handleReset} className="mt-4">Scan Another</Button>
+        </div>
+      )}
+
+      {result && result.valid && !result.isUpcoming && (
         <div className="bg-success/5 border-2 border-success rounded-xl p-8 text-center space-y-3">
           <ShieldCheck className="h-16 w-16 text-success mx-auto" />
           <h2 className="text-2xl font-bold text-success">VALID BOOKING</h2>

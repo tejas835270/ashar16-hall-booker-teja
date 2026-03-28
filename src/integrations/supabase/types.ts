@@ -14,7 +14,132 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          booking_type: string
+          created_at: string
+          custom_end_hour: number | null
+          custom_start_hour: number | null
+          date: string
+          deposit: number
+          event_type: string
+          flat_number: string
+          hall: string
+          id: string
+          member_count: number
+          name: string
+          payment_screenshot_url: string | null
+          penalty_amount: number | null
+          penalty_reason: string | null
+          phone: string | null
+          rent: number
+          status: string
+          time_slot: string
+          total: number
+          user_type: string
+        }
+        Insert: {
+          booking_type?: string
+          created_at?: string
+          custom_end_hour?: number | null
+          custom_start_hour?: number | null
+          date: string
+          deposit: number
+          event_type: string
+          flat_number: string
+          hall: string
+          id: string
+          member_count: number
+          name: string
+          payment_screenshot_url?: string | null
+          penalty_amount?: number | null
+          penalty_reason?: string | null
+          phone?: string | null
+          rent: number
+          status?: string
+          time_slot: string
+          total: number
+          user_type: string
+        }
+        Update: {
+          booking_type?: string
+          created_at?: string
+          custom_end_hour?: number | null
+          custom_start_hour?: number | null
+          date?: string
+          deposit?: number
+          event_type?: string
+          flat_number?: string
+          hall?: string
+          id?: string
+          member_count?: number
+          name?: string
+          payment_screenshot_url?: string | null
+          penalty_amount?: number | null
+          penalty_reason?: string | null
+          phone?: string | null
+          rent?: number
+          status?: string
+          time_slot?: string
+          total?: number
+          user_type?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          deposit: number
+          hall_close_time: number
+          hall_open_time: number
+          halls: Json
+          id: number
+          max_custom_hours: number
+          payment_mode: string
+          payment_qr_url: string | null
+          penalty_notice: string | null
+          pricing: Json
+          rules: Json
+          rules_pdf_name: string | null
+          rules_pdf_url: string | null
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          deposit?: number
+          hall_close_time?: number
+          hall_open_time?: number
+          halls?: Json
+          id?: number
+          max_custom_hours?: number
+          payment_mode?: string
+          payment_qr_url?: string | null
+          penalty_notice?: string | null
+          pricing?: Json
+          rules?: Json
+          rules_pdf_name?: string | null
+          rules_pdf_url?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          deposit?: number
+          hall_close_time?: number
+          hall_open_time?: number
+          halls?: Json
+          id?: number
+          max_custom_hours?: number
+          payment_mode?: string
+          payment_qr_url?: string | null
+          penalty_notice?: string | null
+          pricing?: Json
+          rules?: Json
+          rules_pdf_name?: string | null
+          rules_pdf_url?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

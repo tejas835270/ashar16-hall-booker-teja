@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   createBooking, getRent, getSlotTimes, getDynamicDeposit,
-  getConflictingSlots, isSlotAvailable, formatHour, HALL_LABELS,
-  type Booking, type HallOption, type UserType, type TimeSlot
+  fetchBookingsForDate, isSlotAvailable, formatHour, HALL_LABELS,
+  fetchSettings, uploadFile,
+  type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
-import { getSettings } from '@/lib/settingsStore';
 import { downloadBookingPDF } from '@/lib/pdfReceipt';
 import { toast } from 'sonner';
 
@@ -24,11 +24,11 @@ interface Props {
   onBooked: () => void;
 }
 
-function buildGuardMessage(booking: Booking): string {
+function buildGuardMessage(booking: Booking, settings: HallSettings): string {
   const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
-  const slotTimes = getSlotTimes();
+  const slotTimes = getSlotTimes(settings);
   const slotLabel = booking.timeSlot === 'custom'
     ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
     : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
@@ -67,30 +67,51 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [paying, setPaying] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [showTerms, setShowTerms] = useState(false);
-  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
-  const settings = getSettings();
-  const slotTimes = getSlotTimes();
-  const dynamicDeposit = getDynamicDeposit();
-  const dynamicPricing = settings.pricing;
+  const [settings, setSettings] = useState<HallSettings | null>(null);
+  const [conflicts, setConflicts] = useState<Booking[]>([]);
+  const [slotAvailableState, setSlotAvailableState] = useState(true);
 
-  const conflicts = useMemo(() => getConflictingSlots(date, hall), [date, hall]);
+  useEffect(() => {
+    fetchSettings().then(setSettings);
+    fetchBookingsForDate(date).then(setConflicts);
+  }, [date]);
 
-  const rent = getRent(userType, timeSlot);
+  useEffect(() => {
+    async function check() {
+      if (!settings) return;
+      const available = timeSlot === 'custom'
+        ? await isSlotAvailable(date, hall, 'custom', customStart, customEnd)
+        : await isSlotAvailable(date, hall, timeSlot);
+      setSlotAvailableState(available);
+    }
+    check();
+  }, [date, hall, timeSlot, customStart, customEnd, settings]);
+
+  if (!settings) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
+        <div className="bg-card rounded-2xl shadow-xl p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const slotTimes = getSlotTimes(settings);
+  const dynamicDeposit = getDynamicDeposit(settings);
+  const rent = getRent(userType, timeSlot, settings);
   const deposit = dynamicDeposit;
 
   const CUSTOM_HOURS = Array.from({ length: settings.hallCloseTime - settings.hallOpenTime + 1 }, (_, i) => i + settings.hallOpenTime);
-
   const customDuration = customEnd - customStart;
   const customValid = timeSlot !== 'custom' || (customDuration >= 1 && customDuration <= settings.maxCustomHours && customStart >= settings.hallOpenTime && customEnd <= settings.hallCloseTime && customEnd > customStart);
 
-  const slotAvailable = useMemo(() => {
-    if (timeSlot === 'custom') return isSlotAvailable(date, hall, 'custom', customStart, customEnd) && customValid;
-    return isSlotAvailable(date, hall, timeSlot);
-  }, [date, hall, timeSlot, customStart, customEnd, customValid]);
-
-  const formValid = flatNumber.trim() && name.trim() && phone.trim() && eventType.trim() && parseInt(memberCount) > 0 && agreed && slotAvailable && customValid;
+  const formValid = flatNumber.trim() && name.trim() && phone.trim() && eventType.trim() && parseInt(memberCount) > 0 && agreed && slotAvailableState && customValid;
 
   function handleSubmitForm() {
     if (!formValid) return;
@@ -100,28 +121,22 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   function handleScreenshotUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be under 5 MB');
-      return;
-    }
+    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5 MB'); return; }
+    setScreenshotFile(file);
     const reader = new FileReader();
-    reader.onload = () => setPaymentScreenshot(reader.result as string);
+    reader.onload = () => setScreenshotPreview(reader.result as string);
     reader.readAsDataURL(file);
     e.target.value = '';
   }
 
-  function handlePay() {
-    if (!paymentScreenshot) {
-      toast.error('Please upload payment screenshot to proceed');
-      return;
-    }
+  async function handlePay() {
+    if (!screenshotFile) { toast.error('Please upload payment screenshot to proceed'); return; }
     setPaying(true);
-    setTimeout(() => {
-      const b = createBooking({
+    try {
+      // Upload screenshot to storage
+      const url = await uploadFile(screenshotFile, 'payment-screenshots');
+      const b = await createBooking({
         flatNumber: flatNumber.trim(),
         name: name.trim(),
         phone: phone.trim(),
@@ -134,37 +149,34 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
         memberCount: parseInt(memberCount),
         rent,
         deposit,
-        paymentScreenshot: paymentScreenshot || undefined,
+        bookingType: 'online',
+        paymentScreenshotUrl: url || undefined,
       });
       setBooking(b);
-      setPaying(false);
       setStep('confirmation');
-    }, 1500);
+    } catch (err) {
+      toast.error('Failed to create booking');
+    } finally {
+      setPaying(false);
+    }
   }
 
   function handleShareWhatsApp() {
-    if (!booking) return;
-    const msg = buildGuardMessage(booking);
-    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-    window.open(url, '_blank');
+    if (!booking || !settings) return;
+    const msg = buildGuardMessage(booking, settings);
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   function handleCopyToClipboard() {
-    if (!booking) return;
-    const msg = buildGuardMessage(booking).replace(/\*/g, '');
-    navigator.clipboard.writeText(msg).then(() => {
+    if (!booking || !settings) return;
+    navigator.clipboard.writeText(buildGuardMessage(booking, settings).replace(/\*/g, '')).then(() => {
       toast.success('Booking details copied to clipboard!');
-    }).catch(() => {
-      toast.error('Failed to copy');
     });
   }
 
   function handleViewRulesPdf() {
-    if (settings.rulesPdfDataUrl) {
-      const link = document.createElement('a');
-      link.href = settings.rulesPdfDataUrl;
-      link.download = settings.rulesPdfName || 'Rules_and_Regulations.pdf';
-      link.click();
+    if (settings?.rulesPdfUrl) {
+      window.open(settings.rulesPdfUrl, '_blank');
     }
   }
 
@@ -177,11 +189,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
   const showQr = settings.paymentMode === 'qr' || settings.paymentMode === 'both';
 
+  // Verification URL for QR in PDF
+  const verificationUrl = booking ? `${window.location.origin}/guard?verify=${booking.id}` : '';
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4" onClick={onClose}>
         <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="font-semibold text-lg">
               {step === 'form' && 'Book Community Hall'}
@@ -194,7 +208,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
           </div>
 
           <div className="p-5">
-            {/* FORM STEP */}
             {step === 'form' && (
               <div className="space-y-4">
                 <div className="bg-accent rounded-lg p-3 text-center">
@@ -202,40 +215,23 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p className="font-semibold text-foreground">{formattedDate}</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="flat">Flat Number *</Label>
-                  <Input id="flat" placeholder="e.g. A-101" value={flatNumber} onChange={e => setFlatNumber(e.target.value)} maxLength={10} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input id="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} maxLength={50} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => setPhone(e.target.value)} type="tel" maxLength={15} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="event">Event Type *</Label>
-                  <Input id="event" placeholder="e.g. Birthday Party" value={eventType} onChange={e => setEventType(e.target.value)} maxLength={40} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="members">Member Count (Attendees) *</Label>
-                  <Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} />
-                </div>
+                <div className="space-y-1.5"><Label htmlFor="flat">Flat Number *</Label><Input id="flat" placeholder="e.g. A-101" value={flatNumber} onChange={e => setFlatNumber(e.target.value)} maxLength={10} /></div>
+                <div className="space-y-1.5"><Label htmlFor="name">Full Name *</Label><Input id="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} maxLength={50} /></div>
+                <div className="space-y-1.5"><Label htmlFor="phone">Phone Number *</Label><Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => setPhone(e.target.value)} type="tel" maxLength={15} /></div>
+                <div className="space-y-1.5"><Label htmlFor="event">Event Type *</Label><Input id="event" placeholder="e.g. Birthday Party" value={eventType} onChange={e => setEventType(e.target.value)} maxLength={40} /></div>
+                <div className="space-y-1.5"><Label htmlFor="members">Member Count *</Label><Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} /></div>
 
-                {/* User Type */}
                 <div className="space-y-1.5">
                   <Label>User Type</Label>
                   <Select value={userType} onValueChange={v => setUserType(v as UserType)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="resident">Resident (Full ₹{dynamicPricing.resident.full.toLocaleString('en-IN')} / Half ₹{dynamicPricing.resident.half.toLocaleString('en-IN')})</SelectItem>
-                      <SelectItem value="tenant">Tenant (Full ₹{dynamicPricing.tenant.full.toLocaleString('en-IN')} / Half ₹{dynamicPricing.tenant.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="resident">Resident (Full ₹{settings.pricing.resident.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.resident.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="tenant">Tenant (Full ₹{settings.pricing.tenant.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.tenant.half.toLocaleString('en-IN')})</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Hall Selection */}
                 <div className="space-y-1.5">
                   <Label>Hall Selection</Label>
                   <Select value={hall} onValueChange={v => setHall(v as HallOption)}>
@@ -248,21 +244,19 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </Select>
                 </div>
 
-                {/* Time Slot */}
                 <div className="space-y-1.5">
                   <Label>Time Slot</Label>
                   <Select value={timeSlot} onValueChange={v => setTimeSlot(v as TimeSlot)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full">{slotTimes.full.label} — ₹{getRent(userType, 'full').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot1">{slotTimes['half-slot1'].label} — ₹{getRent(userType, 'half-slot1').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot2">{slotTimes['half-slot2'].label} — ₹{getRent(userType, 'half-slot2').toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="custom">Custom (Max {settings.maxCustomHours} hrs) — ₹{getRent(userType, 'custom').toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="full">{slotTimes.full.label} — ₹{getRent(userType, 'full', settings).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot1">{slotTimes['half-slot1'].label} — ₹{getRent(userType, 'half-slot1', settings).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot2">{slotTimes['half-slot2'].label} — ₹{getRent(userType, 'half-slot2', settings).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="custom">Custom (Max {settings.maxCustomHours} hrs) — ₹{getRent(userType, 'custom', settings).toLocaleString('en-IN')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Custom time pickers */}
                 {timeSlot === 'custom' && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
@@ -287,30 +281,23 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                         </SelectContent>
                       </Select>
                     </div>
-                    {!customValid && <p className="col-span-2 text-xs text-destructive">Custom booking must be 1–{settings.maxCustomHours} hours within {formatHour(settings.hallOpenTime)} – {formatHour(settings.hallCloseTime)}.</p>}
+                    {!customValid && <p className="col-span-2 text-xs text-destructive">Custom booking must be 1–{settings.maxCustomHours} hours.</p>}
                   </div>
                 )}
 
-                {/* Existing bookings on this date/hall */}
                 {conflicts.length > 0 && (
                   <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 space-y-1">
                     <p className="text-xs font-medium text-warning">Existing bookings on this date:</p>
-                    {conflicts.map(c => {
-                      const st = getSlotTimes();
-                      return (
-                        <p key={c.id} className="text-xs text-muted-foreground">
-                          {HALL_LABELS[c.hall]} — {c.timeSlot === 'custom' ? `${formatHour(c.customStartHour!)} – ${formatHour(c.customEndHour!)}` : st[c.timeSlot as keyof typeof st]?.label || c.timeSlot}
-                        </p>
-                      );
-                    })}
+                    {conflicts.map(c => (
+                      <p key={c.id} className="text-xs text-muted-foreground">
+                        {HALL_LABELS[c.hall]} — {c.timeSlot === 'custom' ? `${formatHour(c.customStartHour!)} – ${formatHour(c.customEndHour!)}` : slotTimes[c.timeSlot as keyof typeof slotTimes]?.label || c.timeSlot}
+                      </p>
+                    ))}
                   </div>
                 )}
 
-                {!slotAvailable && (
-                  <p className="text-sm text-destructive font-medium">This time slot conflicts with an existing booking. Please choose another.</p>
-                )}
+                {!slotAvailableState && <p className="text-sm text-destructive font-medium">This time slot conflicts with an existing booking.</p>}
 
-                {/* Terms */}
                 <div className="flex items-start gap-2 pt-1">
                   <Checkbox id="terms" checked={agreed} onCheckedChange={v => setAgreed(!!v)} />
                   <label htmlFor="terms" className="text-sm text-muted-foreground leading-tight cursor-pointer">
@@ -321,30 +308,25 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </label>
                 </div>
 
-                <Button className="w-full" disabled={!formValid} onClick={handleSubmitForm}>
-                  Proceed to Payment
-                </Button>
+                <Button className="w-full" disabled={!formValid} onClick={handleSubmitForm}>Proceed to Payment</Button>
               </div>
             )}
 
-            {/* PAYMENT STEP */}
             {step === 'payment' && (
               <div className="space-y-4">
                 <div className="bg-accent rounded-lg p-4 space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall</span><span className="font-medium">{HALL_LABELS[hall]}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Slot</span><span className="font-medium">{slotLabel(timeSlot)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">User Type</span><span className="font-medium capitalize">{userType}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall Rent</span><span className="font-medium">₹{rent.toLocaleString('en-IN')}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Security Deposit</span><span className="font-medium">₹{deposit.toLocaleString('en-IN')}</span></div>
                   <div className="border-t pt-2 flex justify-between font-semibold"><span>Total</span><span>₹{(rent + deposit).toLocaleString('en-IN')}</span></div>
                 </div>
 
-                {/* QR Code for payment */}
                 {showQr && (
                   <div className="bg-accent rounded-lg p-4 space-y-3 text-center">
                     <p className="text-sm font-medium flex items-center justify-center gap-2"><CreditCard className="h-4 w-4" /> Scan QR to Pay</p>
-                    {settings.paymentQrDataUrl ? (
-                      <img src={settings.paymentQrDataUrl} alt="Payment QR" className="mx-auto max-w-[200px] rounded-lg" />
+                    {settings.paymentQrUrl ? (
+                      <img src={settings.paymentQrUrl} alt="Payment QR" className="mx-auto max-w-[200px] rounded-lg" />
                     ) : settings.upiId ? (
                       <div className="bg-white p-3 rounded-lg inline-block">
                         <QRCode value={`upi://pay?pa=${settings.upiId}&am=${rent + deposit}&cu=INR`} size={180} />
@@ -358,16 +340,12 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </div>
                 )}
 
-                {/* Screenshot Upload */}
                 <div className="bg-accent rounded-lg p-4 space-y-3">
                   <p className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Upload Payment Screenshot *</p>
-                  {paymentScreenshot ? (
+                  {screenshotPreview ? (
                     <div className="relative">
-                      <img src={paymentScreenshot} alt="Payment screenshot" className="w-full max-h-40 object-contain rounded-lg" />
-                      <button
-                        onClick={() => setPaymentScreenshot(null)}
-                        className="absolute top-1 right-1 bg-card rounded-full p-1 shadow"
-                      >
+                      <img src={screenshotPreview} alt="Payment screenshot" className="w-full max-h-40 object-contain rounded-lg" />
+                      <button onClick={() => { setScreenshotFile(null); setScreenshotPreview(null); }} className="absolute top-1 right-1 bg-card rounded-full p-1 shadow">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
@@ -381,14 +359,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>Back</Button>
-                  <Button className="flex-1" onClick={handlePay} disabled={paying || !paymentScreenshot}>
+                  <Button className="flex-1" onClick={handlePay} disabled={paying || !screenshotFile}>
                     {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm Payment`}
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* CONFIRMATION STEP */}
             {step === 'confirmation' && booking && (
               <div className="text-center space-y-4">
                 <div className="flex justify-center">
@@ -402,7 +379,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 </div>
 
                 <div className="bg-accent rounded-lg p-4 inline-block mx-auto">
-                  <QRCode value={booking.id} size={160} />
+                  <QRCode value={verificationUrl || booking.id} size={160} />
                 </div>
 
                 <div className="bg-accent rounded-lg p-3 text-sm text-left space-y-1">
@@ -419,7 +396,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 <p className="text-xs text-muted-foreground">Show this QR code to the security guard on the day of your event.</p>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => downloadBookingPDF(booking)}>
+                  <Button variant="outline" size="sm" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
                     <Download className="h-4 w-4 mr-1.5" /> PDF
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
@@ -436,7 +413,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
         </div>
       </div>
 
-      {/* Terms & Conditions Dialog */}
       <Dialog open={showTerms} onOpenChange={setShowTerms}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -446,7 +422,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
             {settings.rules.map((rule, i) => (
               <p key={i}>{i + 1}. {rule}</p>
             ))}
-            {settings.rulesPdfDataUrl && (
+            {settings.rulesPdfUrl && (
               <div className="pt-3 border-t">
                 <Button variant="outline" size="sm" onClick={handleViewRulesPdf}>
                   <FileText className="h-4 w-4 mr-1.5" /> Download Detailed Rules PDF

@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getSettings } from './settingsStore';
+import { supabase } from '@/integrations/supabase/client';
 
 export type HallOption = 'b-wing' | 'c-wing' | 'both';
 export type UserType = 'resident' | 'tenant';
 export type TimeSlot = 'full' | 'half-slot1' | 'half-slot2' | 'custom';
+export type BookingType = 'online' | 'manual';
 
 export interface Booking {
   id: string;
@@ -22,31 +23,146 @@ export interface Booking {
   deposit: number;
   total: number;
   status: 'confirmed' | 'cancelled';
+  bookingType: BookingType;
   createdAt: string;
-  paymentScreenshot?: string; // base64 data URL
+  paymentScreenshotUrl?: string;
   penaltyAmount?: number;
   penaltyReason?: string;
 }
 
-export function getSlotTimes() {
-  const s = getSettings();
+// Map DB row to app Booking
+function rowToBooking(row: any): Booking {
   return {
-    'full': { start: s.hallOpenTime, end: s.hallCloseTime, label: `Full Day (${formatHour(s.hallOpenTime)} – ${formatHour(s.hallCloseTime)})` },
-    'half-slot1': { start: s.hallOpenTime, end: s.hallOpenTime + Math.floor((s.hallCloseTime - s.hallOpenTime) / 2), label: `Half Day Slot 1 (${formatHour(s.hallOpenTime)} – ${formatHour(s.hallOpenTime + Math.floor((s.hallCloseTime - s.hallOpenTime) / 2))})` },
-    'half-slot2': { start: s.hallCloseTime - Math.floor((s.hallCloseTime - s.hallOpenTime) / 2), end: s.hallCloseTime, label: `Half Day Slot 2 (${formatHour(s.hallCloseTime - Math.floor((s.hallCloseTime - s.hallOpenTime) / 2))} – ${formatHour(s.hallCloseTime)})` },
+    id: row.id,
+    flatNumber: row.flat_number,
+    name: row.name,
+    phone: row.phone || undefined,
+    eventType: row.event_type,
+    date: row.date,
+    timeSlot: row.time_slot as TimeSlot,
+    customStartHour: row.custom_start_hour ?? undefined,
+    customEndHour: row.custom_end_hour ?? undefined,
+    hall: row.hall as HallOption,
+    userType: row.user_type as UserType,
+    memberCount: row.member_count,
+    rent: row.rent,
+    deposit: row.deposit,
+    total: row.total,
+    status: row.status as 'confirmed' | 'cancelled',
+    bookingType: (row.booking_type || 'online') as BookingType,
+    createdAt: row.created_at,
+    paymentScreenshotUrl: row.payment_screenshot_url || undefined,
+    penaltyAmount: row.penalty_amount ?? undefined,
+    penaltyReason: row.penalty_reason || undefined,
+  };
+}
+
+// Settings cache (loaded async)
+let cachedSettings: HallSettings | null = null;
+
+export interface HallSettings {
+  rules: string[];
+  rulesPdfUrl?: string;
+  rulesPdfName?: string;
+  hallOpenTime: number;
+  hallCloseTime: number;
+  maxCustomHours: number;
+  pricing: {
+    resident: { full: number; half: number };
+    tenant: { full: number; half: number };
+  };
+  deposit: number;
+  halls: { key: string; label: string }[];
+  paymentMode: 'qr' | 'manual' | 'both';
+  upiId?: string;
+  paymentQrUrl?: string;
+  penaltyNotice?: string;
+}
+
+const DEFAULT_SETTINGS: HallSettings = {
+  rules: [],
+  hallOpenTime: 8,
+  hallCloseTime: 22,
+  maxCustomHours: 6,
+  pricing: {
+    resident: { full: 7000, half: 4000 },
+    tenant: { full: 8000, half: 5000 },
+  },
+  deposit: 2000,
+  halls: [
+    { key: 'b-wing', label: 'B-Wing Hall' },
+    { key: 'c-wing', label: 'C-Wing Hall' },
+    { key: 'both', label: 'Both (B & C Wing)' },
+  ],
+  paymentMode: 'both',
+  upiId: '',
+};
+
+function rowToSettings(row: any): HallSettings {
+  return {
+    rules: Array.isArray(row.rules) ? row.rules : [],
+    rulesPdfUrl: row.rules_pdf_url || undefined,
+    rulesPdfName: row.rules_pdf_name || undefined,
+    hallOpenTime: row.hall_open_time,
+    hallCloseTime: row.hall_close_time,
+    maxCustomHours: row.max_custom_hours,
+    pricing: typeof row.pricing === 'object' ? row.pricing as any : DEFAULT_SETTINGS.pricing,
+    deposit: row.deposit,
+    halls: Array.isArray(row.halls) ? row.halls as any : DEFAULT_SETTINGS.halls,
+    paymentMode: (row.payment_mode || 'both') as HallSettings['paymentMode'],
+    upiId: row.upi_id || undefined,
+    paymentQrUrl: row.payment_qr_url || undefined,
+    penaltyNotice: row.penalty_notice || undefined,
+  };
+}
+
+// ---- SETTINGS ----
+export async function fetchSettings(): Promise<HallSettings> {
+  const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+  if (error || !data) return DEFAULT_SETTINGS;
+  const s = rowToSettings(data);
+  cachedSettings = s;
+  return s;
+}
+
+export function getCachedSettings(): HallSettings {
+  return cachedSettings || DEFAULT_SETTINGS;
+}
+
+export async function saveSettings(settings: HallSettings): Promise<void> {
+  await supabase.from('settings').update({
+    rules: settings.rules as any,
+    rules_pdf_url: settings.rulesPdfUrl || null,
+    rules_pdf_name: settings.rulesPdfName || null,
+    hall_open_time: settings.hallOpenTime,
+    hall_close_time: settings.hallCloseTime,
+    max_custom_hours: settings.maxCustomHours,
+    pricing: settings.pricing as any,
+    deposit: settings.deposit,
+    halls: settings.halls as any,
+    payment_mode: settings.paymentMode,
+    upi_id: settings.upiId || null,
+    payment_qr_url: settings.paymentQrUrl || null,
+    penalty_notice: settings.penaltyNotice || null,
+    updated_at: new Date().toISOString(),
+  }).eq('id', 1);
+  cachedSettings = settings;
+}
+
+// ---- SLOT/HALL HELPERS (sync, use cached settings) ----
+export function getSlotTimes(s?: HallSettings) {
+  const settings = s || getCachedSettings();
+  return {
+    'full': { start: settings.hallOpenTime, end: settings.hallCloseTime, label: `Full Day (${formatHour(settings.hallOpenTime)} – ${formatHour(settings.hallCloseTime)})` },
+    'half-slot1': { start: settings.hallOpenTime, end: settings.hallOpenTime + Math.floor((settings.hallCloseTime - settings.hallOpenTime) / 2), label: `Half Day Slot 1 (${formatHour(settings.hallOpenTime)} – ${formatHour(settings.hallOpenTime + Math.floor((settings.hallCloseTime - settings.hallOpenTime) / 2))})` },
+    'half-slot2': { start: settings.hallCloseTime - Math.floor((settings.hallCloseTime - settings.hallOpenTime) / 2), end: settings.hallCloseTime, label: `Half Day Slot 2 (${formatHour(settings.hallCloseTime - Math.floor((settings.hallCloseTime - settings.hallOpenTime) / 2))} – ${formatHour(settings.hallCloseTime)})` },
   } as const;
 }
 
-export const SLOT_TIMES = {
-  'full': { start: 8, end: 22, label: 'Full Day (8:00 AM – 10:00 PM)' },
-  'half-slot1': { start: 8, end: 14, label: 'Half Day Slot 1 (8:00 AM – 2:00 PM)' },
-  'half-slot2': { start: 16, end: 22, label: 'Half Day Slot 2 (4:00 PM – 10:00 PM)' },
-};
-
-export function getHallLabels(): Record<string, string> {
-  const s = getSettings();
+export function getHallLabels(s?: HallSettings): Record<string, string> {
+  const settings = s || getCachedSettings();
   const labels: Record<string, string> = {};
-  s.halls.forEach(h => { labels[h.key] = h.label; });
+  settings.halls.forEach(h => { labels[h.key] = h.label; });
   return labels;
 }
 
@@ -56,55 +172,33 @@ export const HALL_LABELS: Record<HallOption, string> = {
   'both': 'Both (B & C Wing)',
 };
 
-export function getDynamicPricing() {
-  return getSettings().pricing;
-}
-
-export const PRICING: Record<UserType, { full: number; half: number }> = {
-  resident: { full: 7000, half: 4000 },
-  tenant: { full: 8000, half: 5000 },
-};
-
-export function getRent(userType: UserType, timeSlot: TimeSlot): number {
-  const p = getDynamicPricing()[userType];
+export function getRent(userType: UserType, timeSlot: TimeSlot, s?: HallSettings): number {
+  const settings = s || getCachedSettings();
+  const p = settings.pricing[userType];
   return timeSlot === 'full' ? p.full : p.half;
 }
 
-export function getDynamicDeposit(): number {
-  return getSettings().deposit;
+export function getDynamicDeposit(s?: HallSettings): number {
+  return (s || getCachedSettings()).deposit;
 }
 
-export const DEPOSIT = 2000;
-
-const STORAGE_KEY = 'community_hall_bookings';
-
-function loadBookings(): Booking[] {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+// ---- BOOKINGS (async, Supabase) ----
+export async function fetchBookings(): Promise<Booking[]> {
+  const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
+  if (error || !data) return [];
+  return data.map(rowToBooking);
 }
 
-function saveBookings(bookings: Booking[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+export async function fetchActiveBookings(): Promise<Booking[]> {
+  const { data, error } = await supabase.from('bookings').select('*').eq('status', 'confirmed').order('date', { ascending: true });
+  if (error || !data) return [];
+  return data.map(rowToBooking);
 }
 
-export function getBookings(): Booking[] {
-  return loadBookings();
-}
-
-export function getActiveBookings(): Booking[] {
-  return loadBookings().filter(b => b.status === 'confirmed');
-}
-
-export function getBookingsForDate(date: string, hall?: HallOption): Booking[] {
-  return getActiveBookings().filter(b => {
-    if (b.date !== date) return false;
-    if (hall && hall !== 'both' && b.hall !== 'both' && b.hall !== hall) return false;
-    return true;
-  });
+export async function fetchBookingsForDate(date: string): Promise<Booking[]> {
+  const { data, error } = await supabase.from('bookings').select('*').eq('date', date).eq('status', 'confirmed');
+  if (error || !data) return [];
+  return data.map(rowToBooking);
 }
 
 function getSlotRange(b: Booking): { start: number; end: number } {
@@ -114,17 +208,15 @@ function getSlotRange(b: Booking): { start: number; end: number } {
   return s || { start: 8, end: 22 };
 }
 
-export function getConflictingSlots(date: string, hall: HallOption): Booking[] {
-  const active = getActiveBookings().filter(b => b.date === date);
-  return active.filter(b => {
+export async function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSlot, customStart?: number, customEnd?: number, excludeId?: string): Promise<boolean> {
+  const bookings = await fetchBookingsForDate(date);
+  const conflicts = bookings.filter(b => {
+    if (excludeId && b.id === excludeId) return false;
     if (hall === 'both') return true;
     if (b.hall === 'both') return true;
     return b.hall === hall;
   });
-}
 
-export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSlot, customStart?: number, customEnd?: number, excludeId?: string): boolean {
-  const conflicts = getConflictingSlots(date, hall).filter(b => b.id !== excludeId);
   const slots = getSlotTimes();
   const newRange = timeSlot === 'custom'
     ? { start: customStart || 8, end: customEnd || 14 }
@@ -136,8 +228,8 @@ export function isSlotAvailable(date: string, hall: HallOption, timeSlot: TimeSl
   });
 }
 
-export function isDateAvailable(date: string): boolean {
-  const active = getActiveBookings().filter(b => b.date === date);
+export async function isDateAvailable(date: string): Promise<boolean> {
+  const active = await fetchBookingsForDate(date);
   const fullBoth = active.some(b => b.timeSlot === 'full' && b.hall === 'both');
   if (fullBoth) return false;
   const fullB = active.some(b => b.timeSlot === 'full' && (b.hall === 'b-wing' || b.hall === 'both'));
@@ -146,56 +238,121 @@ export function isDateAvailable(date: string): boolean {
   return true;
 }
 
-export function createBooking(data: Omit<Booking, 'id' | 'total' | 'status' | 'createdAt'>): Booking {
-  const booking: Booking = {
-    ...data,
-    id: uuidv4().slice(0, 8).toUpperCase(),
-    total: data.rent + data.deposit,
+export async function createBooking(data: Omit<Booking, 'id' | 'total' | 'status' | 'createdAt'>): Promise<Booking> {
+  const id = uuidv4().slice(0, 8).toUpperCase();
+  const total = data.rent + data.deposit;
+  const now = new Date().toISOString();
+
+  const row = {
+    id,
+    flat_number: data.flatNumber,
+    name: data.name,
+    phone: data.phone || null,
+    event_type: data.eventType,
+    date: data.date,
+    time_slot: data.timeSlot,
+    custom_start_hour: data.customStartHour ?? null,
+    custom_end_hour: data.customEndHour ?? null,
+    hall: data.hall,
+    user_type: data.userType,
+    member_count: data.memberCount,
+    rent: data.rent,
+    deposit: data.deposit,
+    total,
     status: 'confirmed',
-    createdAt: new Date().toISOString(),
+    booking_type: data.bookingType || 'online',
+    payment_screenshot_url: data.paymentScreenshotUrl || null,
+    penalty_amount: 0,
+    penalty_reason: null,
+    created_at: now,
   };
-  const bookings = loadBookings();
-  bookings.push(booking);
-  saveBookings(bookings);
-  return booking;
+
+  const { error } = await supabase.from('bookings').insert(row);
+  if (error) throw error;
+
+  return {
+    ...data,
+    id,
+    total,
+    status: 'confirmed',
+    bookingType: data.bookingType || 'online',
+    createdAt: now,
+  };
 }
 
-export function updateBooking(id: string, updates: Partial<Booking>): boolean {
-  const bookings = loadBookings();
-  const idx = bookings.findIndex(b => b.id === id);
-  if (idx === -1) return false;
-  const old = bookings[idx];
-  const updated = { ...old, ...updates };
+export async function updateBooking(id: string, updates: Partial<Booking>): Promise<boolean> {
+  const dbUpdates: any = {};
+  if (updates.flatNumber !== undefined) dbUpdates.flat_number = updates.flatNumber;
+  if (updates.name !== undefined) dbUpdates.name = updates.name;
+  if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+  if (updates.eventType !== undefined) dbUpdates.event_type = updates.eventType;
+  if (updates.date !== undefined) dbUpdates.date = updates.date;
+  if (updates.timeSlot !== undefined) dbUpdates.time_slot = updates.timeSlot;
+  if (updates.customStartHour !== undefined) dbUpdates.custom_start_hour = updates.customStartHour;
+  if (updates.customEndHour !== undefined) dbUpdates.custom_end_hour = updates.customEndHour;
+  if (updates.hall !== undefined) dbUpdates.hall = updates.hall;
+  if (updates.userType !== undefined) dbUpdates.user_type = updates.userType;
+  if (updates.memberCount !== undefined) dbUpdates.member_count = updates.memberCount;
+  if (updates.rent !== undefined) dbUpdates.rent = updates.rent;
+  if (updates.deposit !== undefined) dbUpdates.deposit = updates.deposit;
+  if (updates.status !== undefined) dbUpdates.status = updates.status;
+  if (updates.bookingType !== undefined) dbUpdates.booking_type = updates.bookingType;
+  if (updates.paymentScreenshotUrl !== undefined) dbUpdates.payment_screenshot_url = updates.paymentScreenshotUrl;
+  if (updates.penaltyAmount !== undefined) dbUpdates.penalty_amount = updates.penaltyAmount;
+  if (updates.penaltyReason !== undefined) dbUpdates.penalty_reason = updates.penaltyReason;
+
   // Recalculate total if rent or deposit changed
   if (updates.rent !== undefined || updates.deposit !== undefined) {
-    updated.total = (updates.rent ?? old.rent) + (updates.deposit ?? old.deposit);
+    const { data: current } = await supabase.from('bookings').select('rent, deposit').eq('id', id).single();
+    if (current) {
+      dbUpdates.total = (updates.rent ?? current.rent) + (updates.deposit ?? current.deposit);
+    }
   }
-  bookings[idx] = updated;
-  saveBookings(bookings);
-  return true;
+
+  const { error } = await supabase.from('bookings').update(dbUpdates).eq('id', id);
+  return !error;
 }
 
-export function cancelBooking(id: string): boolean {
-  const bookings = loadBookings();
-  const idx = bookings.findIndex(b => b.id === id);
-  if (idx === -1) return false;
-  bookings[idx].status = 'cancelled';
-  saveBookings(bookings);
-  return true;
+export async function cancelBooking(id: string): Promise<boolean> {
+  const { error } = await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', id);
+  return !error;
 }
 
-export function findBooking(id: string): Booking | undefined {
-  return loadBookings().find(b => b.id === id);
+export async function findBooking(id: string): Promise<Booking | undefined> {
+  const { data, error } = await supabase.from('bookings').select('*').eq('id', id).single();
+  if (error || !data) return undefined;
+  return rowToBooking(data);
 }
 
-export function validateBooking(id: string): { valid: boolean; booking?: Booking } {
-  const booking = findBooking(id);
+export async function validateBooking(id: string): Promise<{ valid: boolean; booking?: Booking; isUpcoming?: boolean }> {
+  const booking = await findBooking(id);
   if (!booking || booking.status === 'cancelled') return { valid: false };
-  const bookingDate = new Date(booking.date);
+  const bookingDate = new Date(booking.date + 'T00:00:00');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (bookingDate < today) return { valid: false };
-  return { valid: true, booking };
+  const isUpcoming = bookingDate > today;
+  return { valid: true, booking, isUpcoming };
+}
+
+// ---- FILE UPLOAD ----
+export async function uploadFile(file: File, folder: string): Promise<string | null> {
+  const ext = file.name.split('.').pop();
+  const fileName = `${folder}/${uuidv4()}.${ext}`;
+  const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+  if (error) return null;
+  const { data } = supabase.storage.from('uploads').getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
+export async function uploadBase64File(base64: string, folder: string, ext: string): Promise<string | null> {
+  const response = await fetch(base64);
+  const blob = await response.blob();
+  const fileName = `${folder}/${uuidv4()}.${ext}`;
+  const { error } = await supabase.storage.from('uploads').upload(fileName, blob);
+  if (error) return null;
+  const { data } = supabase.storage.from('uploads').getPublicUrl(fileName);
+  return data.publicUrl;
 }
 
 export function formatHour(h: number): string {
@@ -203,32 +360,4 @@ export function formatHour(h: number): string {
   if (h < 12) return `${h}:00 AM`;
   if (h === 12) return '12:00 PM';
   return `${h - 12}:00 PM`;
-}
-
-export function seedDummyData() {
-  if (loadBookings().length > 0) return;
-  const today = new Date();
-  const dummies = [
-    { flatNumber: 'A-101', name: 'Raj Sharma', phone: '9876543210', eventType: 'Birthday Party', daysOffset: 3, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 30 },
-    { flatNumber: 'B-204', name: 'Priya Patel', phone: '9876543211', eventType: 'Anniversary', daysOffset: 7, timeSlot: 'half-slot1' as const, hall: 'c-wing' as const, userType: 'tenant' as const, memberCount: 20 },
-    { flatNumber: 'C-302', name: 'Amit Singh', phone: '9876543212', eventType: 'Meeting', daysOffset: 12, timeSlot: 'full' as const, hall: 'both' as const, userType: 'resident' as const, memberCount: 50 },
-    { flatNumber: 'A-405', name: 'Sneha Gupta', phone: '9876543213', eventType: 'Pooja', daysOffset: 18, timeSlot: 'full' as const, hall: 'b-wing' as const, userType: 'resident' as const, memberCount: 40 },
-  ];
-  dummies.forEach(d => {
-    const date = new Date(today);
-    date.setDate(date.getDate() + d.daysOffset);
-    createBooking({
-      flatNumber: d.flatNumber,
-      name: d.name,
-      phone: d.phone,
-      eventType: d.eventType,
-      date: date.toISOString().split('T')[0],
-      timeSlot: d.timeSlot,
-      hall: d.hall,
-      userType: d.userType,
-      memberCount: d.memberCount,
-      rent: getRent(d.userType, d.timeSlot),
-      deposit: getDynamicDeposit(),
-    });
-  });
 }
