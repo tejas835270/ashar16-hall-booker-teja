@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe } from 'lucide-react';
+import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
