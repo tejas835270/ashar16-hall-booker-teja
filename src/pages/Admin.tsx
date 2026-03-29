@@ -377,7 +377,7 @@ function ManualBookingModal({ existingBooking, settings, onClose, onSaved }: { e
   const dateStr = selectedDate ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}` : '';
 
   const slotTimes = getSlotTimes(settings);
-  const rent = getRent(userType, timeSlot, settings);
+  const rent = getRent(userType, timeSlot, settings, hall);
   const deposit = getDynamicDeposit(settings);
 
   const CUSTOM_HOURS = Array.from({ length: settings.hallCloseTime - settings.hallOpenTime + 1 }, (_, i) => i + settings.hallOpenTime);
