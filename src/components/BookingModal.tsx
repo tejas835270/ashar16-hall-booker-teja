@@ -366,7 +366,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>Back</Button>
                   <Button className="flex-1" onClick={handlePay} disabled={paying || !screenshotFile}>
-                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm Payment`}
+                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm & Pay ₹${rent.toLocaleString('en-IN')}`}
                   </Button>
                 </div>
               </div>
@@ -383,6 +383,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p className="font-semibold text-lg">Booking Confirmed!</p>
                   <p className="text-muted-foreground text-sm">Your booking ID: <span className="font-mono font-bold text-foreground">{booking.id}</span></p>
                 </div>
+
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-left">
+                  <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">📝 Security Deposit Reminder</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Please submit your Security Deposit cheque of <strong>₹{booking.deposit.toLocaleString('en-IN')}</strong> to the society office, made out to <strong>"Ashar 16 Co. Op. Societies Association Ltd"</strong>.</p>
 
                 <div className="bg-accent rounded-lg p-4 inline-block mx-auto">
                   <QRCode value={verificationUrl || booking.id} size={160} />
