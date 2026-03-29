@@ -85,8 +85,8 @@ const DEFAULT_SETTINGS: HallSettings = {
   hallCloseTime: 22,
   maxCustomHours: 6,
   pricing: {
-    resident: { full: 7000, half: 4000 },
-    tenant: { full: 8000, half: 5000 },
+    resident: { full: 4000, half: 2500 },
+    tenant: { full: 5000, half: 3000 },
   },
   deposit: 2000,
   halls: [
@@ -172,10 +172,11 @@ export const HALL_LABELS: Record<HallOption, string> = {
   'both': 'Both (B & C Wing)',
 };
 
-export function getRent(userType: UserType, timeSlot: TimeSlot, s?: HallSettings): number {
+export function getRent(userType: UserType, timeSlot: TimeSlot, s?: HallSettings, hall?: HallOption): number {
   const settings = s || getCachedSettings();
   const p = settings.pricing[userType];
-  return timeSlot === 'full' ? p.full : p.half;
+  const base = timeSlot === 'full' ? p.full : p.half;
+  return hall === 'both' ? base * 2 : base;
 }
 
 export function getDynamicDeposit(s?: HallSettings): number {

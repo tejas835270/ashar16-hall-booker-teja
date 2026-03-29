@@ -104,7 +104,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
   const slotTimes = getSlotTimes(settings);
   const dynamicDeposit = getDynamicDeposit(settings);
-  const rent = getRent(userType, timeSlot, settings);
+  const rent = getRent(userType, timeSlot, settings, hall);
   const deposit = dynamicDeposit;
 
   const CUSTOM_HOURS = Array.from({ length: settings.hallCloseTime - settings.hallOpenTime + 1 }, (_, i) => i + settings.hallOpenTime);
@@ -249,10 +249,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <Select value={timeSlot} onValueChange={v => setTimeSlot(v as TimeSlot)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="full">{slotTimes.full.label} — ₹{getRent(userType, 'full', settings).toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot1">{slotTimes['half-slot1'].label} — ₹{getRent(userType, 'half-slot1', settings).toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="half-slot2">{slotTimes['half-slot2'].label} — ₹{getRent(userType, 'half-slot2', settings).toLocaleString('en-IN')}</SelectItem>
-                      <SelectItem value="custom">Custom (Max {settings.maxCustomHours} hrs) — ₹{getRent(userType, 'custom', settings).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="full">{slotTimes.full.label} — ₹{getRent(userType, 'full', settings, hall).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot1">{slotTimes['half-slot1'].label} — ₹{getRent(userType, 'half-slot1', settings, hall).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="half-slot2">{slotTimes['half-slot2'].label} — ₹{getRent(userType, 'half-slot2', settings, hall).toLocaleString('en-IN')}</SelectItem>
+                      <SelectItem value="custom">Custom (Max {settings.maxCustomHours} hrs) — ₹{getRent(userType, 'custom', settings, hall).toLocaleString('en-IN')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
