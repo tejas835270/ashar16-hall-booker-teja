@@ -241,7 +241,7 @@ export async function isDateAvailable(date: string): Promise<boolean> {
 
 export async function createBooking(data: Omit<Booking, 'id' | 'total' | 'status' | 'createdAt'>): Promise<Booking> {
   const id = uuidv4().slice(0, 8).toUpperCase();
-  const total = data.rent + data.deposit;
+  const total = data.rent; // deposit is paid separately via cheque
   const now = new Date().toISOString();
 
   const row = {
