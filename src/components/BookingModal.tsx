@@ -220,9 +220,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <div className="space-y-1.5"><Label htmlFor="flat">Flat Number *</Label><Input id="flat" placeholder="e.g. A-101" value={flatNumber} onChange={e => setFlatNumber(e.target.value)} maxLength={10} /></div>
                 <div className="space-y-1.5"><Label htmlFor="name">Full Name *</Label><Input id="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} maxLength={50} /></div>
-                <div className="space-y-1.5"><Label htmlFor="phone">Phone Number *</Label><Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => setPhone(e.target.value)} type="tel" maxLength={15} /></div>
+                <div className="space-y-1.5"><Label htmlFor="phone">Phone Number * <span className="text-xs text-muted-foreground">(10 digits)</span></Label><Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setPhone(v); }} type="tel" maxLength={10} />{phone.length > 0 && !(/^\d{10}$/.test(phone)) && <p className="text-xs text-destructive">Phone number must be exactly 10 digits.</p>}</div>
                 <div className="space-y-1.5"><Label htmlFor="event">Event Type *</Label><Input id="event" placeholder="e.g. Birthday Party" value={eventType} onChange={e => setEventType(e.target.value)} maxLength={40} /></div>
-                <div className="space-y-1.5"><Label htmlFor="members">Member Count *</Label><Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} /></div>
+                <div className="space-y-1.5"><Label htmlFor="members">Member Count *</Label><Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} /><p className="text-xs text-muted-foreground">For more than 80 members, booking of 2 halls is mandatory.</p>{needsBothHalls && <p className="text-xs text-destructive font-medium">Please select "Both (B & C Wing)" for more than 80 members.</p>}</div>
 
                 <div className="space-y-1.5">
                   <Label>User Type</Label>
@@ -321,8 +321,11 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall</span><span className="font-medium">{HALL_LABELS[hall]}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Slot</span><span className="font-medium">{slotLabel(timeSlot)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall Rent</span><span className="font-medium">₹{rent.toLocaleString('en-IN')}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Security Deposit</span><span className="font-medium">₹{deposit.toLocaleString('en-IN')}</span></div>
-                  <div className="border-t pt-2 flex justify-between font-semibold"><span>Total</span><span>₹{(rent + deposit).toLocaleString('en-IN')}</span></div>
+                  <div className="border-t pt-2 flex justify-between font-semibold"><span>Total Payable (Online)</span><span>₹{rent.toLocaleString('en-IN')}</span></div>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">📝 Security Deposit: ₹{deposit.toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">To be paid via cheque made out to: <strong>"Ashar 16 Co. Op. Societies Association Ltd"</strong></p>
                 </div>
 
                 {showQr && (
