@@ -111,7 +111,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const customDuration = customEnd - customStart;
   const customValid = timeSlot !== 'custom' || (customDuration >= 1 && customDuration <= settings.maxCustomHours && customStart >= settings.hallOpenTime && customEnd <= settings.hallCloseTime && customEnd > customStart);
 
-  const formValid = flatNumber.trim() && name.trim() && phone.trim() && eventType.trim() && parseInt(memberCount) > 0 && agreed && slotAvailableState && customValid;
+  const phoneValid = /^\d{10}$/.test(phone.trim());
+  const memberCountNum = parseInt(memberCount) || 0;
+  const needsBothHalls = memberCountNum > 80 && hall !== 'both';
+  const formValid = flatNumber.trim() && name.trim() && phoneValid && eventType.trim() && memberCountNum > 0 && agreed && slotAvailableState && customValid && !needsBothHalls;
 
   function handleSubmitForm() {
     if (!formValid) return;
