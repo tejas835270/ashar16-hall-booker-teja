@@ -85,8 +85,8 @@ const DEFAULT_SETTINGS: HallSettings = {
   hallCloseTime: 22,
   maxCustomHours: 6,
   pricing: {
-    resident: { full: 7000, half: 4000 },
-    tenant: { full: 8000, half: 5000 },
+    resident: { full: 4000, half: 2500 },
+    tenant: { full: 5000, half: 3000 },
   },
   deposit: 2000,
   halls: [
