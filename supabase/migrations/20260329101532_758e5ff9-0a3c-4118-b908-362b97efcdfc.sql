@@ -1,0 +1,1 @@
+UPDATE public.settings SET pricing = '{"resident":{"full":4000,"half":2500},"tenant":{"full":5000,"half":3000}}'::jsonb WHERE id = 1;
