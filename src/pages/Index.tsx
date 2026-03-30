@@ -180,11 +180,6 @@ export default function Index() {
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-foreground">Ashar 16 CHSL – Hall Booking</h1>
         <p className="text-muted-foreground text-sm mt-1">Select an available date to book the community hall</p>
-        {settings.penaltyNotice && (
-          <div className="mt-3 bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive font-medium">
-            ⚠️ {settings.penaltyNotice}
-          </div>
-        )}
       </div>
 
       <div className="bg-card rounded-xl shadow-card p-4 sm:p-6">

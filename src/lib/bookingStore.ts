@@ -146,6 +146,7 @@ export async function saveSettings(settings: HallSettings): Promise<void> {
     upi_id: settings.upiId || null,
     payment_qr_url: settings.paymentQrUrl || null,
     penalty_notice: settings.penaltyNotice || null,
+    cheque_payee_name: settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd',
     updated_at: new Date().toISOString(),
   }).eq('id', 1);
   cachedSettings = settings;

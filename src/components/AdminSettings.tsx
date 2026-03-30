@@ -105,18 +105,17 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Penalty Notice */}
+      {/* Cheque Payee Name */}
       <div className="bg-card rounded-xl shadow-card p-5">
-        <h3 className="font-semibold text-base mb-4">Penalty Notice</h3>
+        <h3 className="font-semibold text-base mb-4">Cheque Payee Name</h3>
         <div className="space-y-1.5">
-          <Label>Display a penalty/notice message to residents</Label>
-          <Textarea
-            placeholder="e.g. ⚠️ Late vacating will attract a penalty of ₹500 per hour."
-            value={settings.penaltyNotice || ''}
-            onChange={e => setSettings({ ...settings, penaltyNotice: e.target.value })}
-            rows={2}
+          <Label>Payee name shown to residents for security deposit cheques</Label>
+          <Input
+            placeholder="e.g. Ashar 16 Co. Op. Societies Association Ltd"
+            value={settings.chequePayeeName || ''}
+            onChange={e => setSettings({ ...settings, chequePayeeName: e.target.value })}
           />
-          <p className="text-xs text-muted-foreground">This message appears on the booking page for all users.</p>
+          <p className="text-xs text-muted-foreground">This name appears on the payment & confirmation screens.</p>
         </div>
       </div>
 
