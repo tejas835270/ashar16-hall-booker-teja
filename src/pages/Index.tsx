@@ -226,10 +226,10 @@ export default function Index() {
           })}
         </div>
 
-        <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground justify-center">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-success/20" /> Available</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-warning/20" /> Partial (tap to see slots)</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/20" /> Booked</span>
+        <div className="flex flex-wrap gap-4 mt-5 text-xs text-muted-foreground justify-center">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-success/40 to-success/20 border border-success/30" /> Available</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-warning/40 to-warning/20 border border-warning/30" /> Partial</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-destructive/40 to-destructive/20 border border-destructive/30" /> Booked</span>
         </div>
       </div>
 
