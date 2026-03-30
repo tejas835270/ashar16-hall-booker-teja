@@ -177,12 +177,16 @@ export default function Index() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Ashar 16 CHSL – Hall Booking</h1>
-        <p className="text-muted-foreground text-sm mt-1">Select an available date to book the community hall</p>
+      {/* Hero Header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-xs font-semibold mb-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <Sparkles className="h-3.5 w-3.5" /> Community Hall Booking
+        </div>
+        <h1 className="text-3xl font-extrabold text-foreground tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">Ashar 16 CHSL</h1>
+        <p className="text-muted-foreground text-sm mt-1.5 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">Select an available date to book the community hall</p>
       </div>
 
-      <div className="bg-card rounded-xl shadow-card p-4 sm:p-6">
+      <div className="bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-5 w-5" /></Button>
           <h2 className="text-lg font-semibold">{MONTH_NAMES[month]} {year}</h2>
