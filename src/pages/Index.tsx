@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   fetchActiveBookings, fetchSettings, getCachedSettings, formatHour, getSlotTimes,
