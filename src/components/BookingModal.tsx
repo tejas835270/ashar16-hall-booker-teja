@@ -373,15 +373,15 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
             )}
 
             {step === 'confirmation' && booking && (
-              <div className="text-center space-y-4">
+              <div className="text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex justify-center">
-                  <div className="h-16 w-16 rounded-full bg-success/10 flex items-center justify-center">
-                    <CheckCircle className="h-8 w-8 text-success" />
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center shadow-lg shadow-success/10 animate-in zoom-in duration-500">
+                    <CheckCircle className="h-10 w-10 text-success" />
                   </div>
                 </div>
                 <div>
-                  <p className="font-semibold text-lg">Booking Confirmed!</p>
-                  <p className="text-muted-foreground text-sm">Your booking ID: <span className="font-mono font-bold text-foreground">{booking.id}</span></p>
+                  <p className="font-bold text-xl text-foreground">Booking Confirmed! 🎉</p>
+                  <p className="text-muted-foreground text-sm mt-1">Your booking ID: <span className="font-mono font-bold text-primary text-base">{booking.id}</span></p>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-left">
