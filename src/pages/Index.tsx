@@ -211,16 +211,16 @@ export default function Index() {
                 key={day}
                 disabled={status === 'past' || status === 'booked'}
                 onClick={() => handleDayClick(day)}
-                className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all ${
-                  status === 'past' ? 'text-muted-foreground/40 cursor-default' :
-                  status === 'booked' ? 'bg-destructive/10 text-destructive cursor-not-allowed' :
-                  status === 'partial' ? 'bg-warning/10 text-warning hover:shadow-card-hover cursor-pointer' :
-                  'bg-success/10 text-success hover:shadow-card-hover cursor-pointer'
-                } ${isToday ? 'ring-2 ring-primary ring-offset-1' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-1' : ''}`}
+                className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  status === 'past' ? 'text-muted-foreground/30 cursor-default' :
+                  status === 'booked' ? 'bg-destructive/10 text-destructive/70 cursor-not-allowed' :
+                  status === 'partial' ? 'bg-gradient-to-br from-warning/10 to-warning/5 text-warning-foreground hover:shadow-md hover:scale-105 cursor-pointer border border-warning/20' :
+                  'bg-gradient-to-br from-success/10 to-success/5 text-success-foreground hover:shadow-md hover:scale-105 cursor-pointer border border-success/20'
+                } ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-2 ring-offset-background scale-105' : ''}`}
               >
                 <span>{day}</span>
-                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 opacity-60" />}
-                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 opacity-60" />}
+                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 text-success opacity-70" />}
+                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 text-warning opacity-70" />}
               </button>
             );
           })}
