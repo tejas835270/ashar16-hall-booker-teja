@@ -154,21 +154,21 @@ export default function Admin() {
         <>
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><CalendarDays className="h-5 w-5 text-primary" /></div>
-              <div><p className="text-sm text-muted-foreground">Upcoming</p><p className="text-xl font-bold">{upcomingCount}</p></div>
+            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center"><CalendarDays className="h-5 w-5 text-primary" /></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Upcoming</p><p className="text-xl font-bold">{upcomingCount}</p></div>
             </div>
-            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center"><IndianRupee className="h-5 w-5 text-success" /></div>
-              <div><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p></div>
+            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center"><IndianRupee className="h-5 w-5 text-success" /></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Total Revenue</p><p className="text-xl font-bold">₹{totalRevenue.toLocaleString('en-IN')}</p></div>
             </div>
-            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><AlertTriangle className="h-5 w-5 text-amber-600" /></div>
-              <div><p className="text-sm text-muted-foreground">Total Penalties</p><p className="text-xl font-bold">₹{totalPenalties.toLocaleString('en-IN')}</p></div>
+            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-200/40 to-amber-100/20 dark:from-amber-800/30 dark:to-amber-900/10 flex items-center justify-center"><AlertTriangle className="h-5 w-5 text-amber-600" /></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Total Penalties</p><p className="text-xl font-bold">₹{totalPenalties.toLocaleString('en-IN')}</p></div>
             </div>
-            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-destructive/10 flex items-center justify-center"><Ban className="h-5 w-5 text-destructive" /></div>
-              <div><p className="text-sm text-muted-foreground">Cancelled</p><p className="text-xl font-bold">{bookings.filter(b => b.status === 'cancelled').length}</p></div>
+            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-destructive/20 to-destructive/5 flex items-center justify-center"><Ban className="h-5 w-5 text-destructive" /></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Cancelled</p><p className="text-xl font-bold">{bookings.filter(b => b.status === 'cancelled').length}</p></div>
             </div>
           </div>
 

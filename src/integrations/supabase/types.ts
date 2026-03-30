@@ -88,6 +88,7 @@ export type Database = {
       }
       settings: {
         Row: {
+          cheque_payee_name: string | null
           deposit: number
           hall_close_time: number
           hall_open_time: number
@@ -105,6 +106,7 @@ export type Database = {
           upi_id: string | null
         }
         Insert: {
+          cheque_payee_name?: string | null
           deposit?: number
           hall_close_time?: number
           hall_open_time?: number
@@ -122,6 +124,7 @@ export type Database = {
           upi_id?: string | null
         }
         Update: {
+          cheque_payee_name?: string | null
           deposit?: number
           hall_close_time?: number
           hall_open_time?: number

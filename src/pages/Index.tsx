@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   fetchActiveBookings, fetchSettings, getCachedSettings, formatHour, getSlotTimes,
@@ -177,21 +177,20 @@ export default function Index() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-3xl">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Ashar 16 CHSL – Hall Booking</h1>
-        <p className="text-muted-foreground text-sm mt-1">Select an available date to book the community hall</p>
-        {settings.penaltyNotice && (
-          <div className="mt-3 bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive font-medium">
-            ⚠️ {settings.penaltyNotice}
-          </div>
-        )}
+      {/* Hero Header */}
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-2 bg-primary/10 text-primary rounded-full px-4 py-1.5 text-xs font-semibold mb-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <Sparkles className="h-3.5 w-3.5" /> Community Hall Booking
+        </div>
+        <h1 className="text-3xl font-extrabold text-foreground tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">Ashar 16 CHSL</h1>
+        <p className="text-muted-foreground text-sm mt-1.5 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">Select an available date to book the community hall</p>
       </div>
 
-      <div className="bg-card rounded-xl shadow-card p-4 sm:p-6">
+      <div className="bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-5 w-5" /></Button>
-          <h2 className="text-lg font-semibold">{MONTH_NAMES[month]} {year}</h2>
-          <Button variant="ghost" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-primary/10 transition-all"><ChevronLeft className="h-5 w-5" /></Button>
+          <h2 className="text-lg font-bold tracking-tight">{MONTH_NAMES[month]} {year}</h2>
+          <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="hover:bg-primary/10 transition-all"><ChevronRight className="h-5 w-5" /></Button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 mb-1">
@@ -212,25 +211,25 @@ export default function Index() {
                 key={day}
                 disabled={status === 'past' || status === 'booked'}
                 onClick={() => handleDayClick(day)}
-                className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-sm font-medium transition-all ${
-                  status === 'past' ? 'text-muted-foreground/40 cursor-default' :
-                  status === 'booked' ? 'bg-destructive/10 text-destructive cursor-not-allowed' :
-                  status === 'partial' ? 'bg-warning/10 text-warning hover:shadow-card-hover cursor-pointer' :
-                  'bg-success/10 text-success hover:shadow-card-hover cursor-pointer'
-                } ${isToday ? 'ring-2 ring-primary ring-offset-1' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-1' : ''}`}
+                className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  status === 'past' ? 'text-muted-foreground/30 cursor-default' :
+                  status === 'booked' ? 'bg-destructive/10 text-destructive/70 cursor-not-allowed' :
+                  status === 'partial' ? 'bg-gradient-to-br from-warning/10 to-warning/5 text-warning-foreground hover:shadow-md hover:scale-105 cursor-pointer border border-warning/20' :
+                  'bg-gradient-to-br from-success/10 to-success/5 text-success-foreground hover:shadow-md hover:scale-105 cursor-pointer border border-success/20'
+                } ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-2 ring-offset-background scale-105' : ''}`}
               >
                 <span>{day}</span>
-                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 opacity-60" />}
-                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 opacity-60" />}
+                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 text-success opacity-70" />}
+                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 text-warning opacity-70" />}
               </button>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap gap-4 mt-4 text-xs text-muted-foreground justify-center">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-success/20" /> Available</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-warning/20" /> Partial (tap to see slots)</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-destructive/20" /> Booked</span>
+        <div className="flex flex-wrap gap-4 mt-5 text-xs text-muted-foreground justify-center">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-success/40 to-success/20 border border-success/30" /> Available</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-warning/40 to-warning/20 border border-warning/30" /> Partial</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-gradient-to-br from-destructive/40 to-destructive/20 border border-destructive/30" /> Booked</span>
         </div>
       </div>
 

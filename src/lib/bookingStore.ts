@@ -77,6 +77,7 @@ export interface HallSettings {
   upiId?: string;
   paymentQrUrl?: string;
   penaltyNotice?: string;
+  chequePayeeName?: string;
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
@@ -113,6 +114,7 @@ function rowToSettings(row: any): HallSettings {
     upiId: row.upi_id || undefined,
     paymentQrUrl: row.payment_qr_url || undefined,
     penaltyNotice: row.penalty_notice || undefined,
+    chequePayeeName: row.cheque_payee_name || 'Ashar 16 Co. Op. Societies Association Ltd',
   };
 }
 
@@ -144,6 +146,7 @@ export async function saveSettings(settings: HallSettings): Promise<void> {
     upi_id: settings.upiId || null,
     payment_qr_url: settings.paymentQrUrl || null,
     penalty_notice: settings.penaltyNotice || null,
+    cheque_payee_name: settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd',
     updated_at: new Date().toISOString(),
   }).eq('id', 1);
   cachedSettings = settings;

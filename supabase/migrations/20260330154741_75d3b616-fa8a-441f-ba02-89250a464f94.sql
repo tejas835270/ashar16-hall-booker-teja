@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS cheque_payee_name text DEFAULT 'Ashar 16 Co. Op. Societies Association Ltd';
