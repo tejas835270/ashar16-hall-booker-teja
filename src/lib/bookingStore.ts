@@ -114,6 +114,7 @@ function rowToSettings(row: any): HallSettings {
     upiId: row.upi_id || undefined,
     paymentQrUrl: row.payment_qr_url || undefined,
     penaltyNotice: row.penalty_notice || undefined,
+    chequePayeeName: row.cheque_payee_name || 'Ashar 16 Co. Op. Societies Association Ltd',
   };
 }
 
