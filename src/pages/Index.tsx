@@ -190,7 +190,7 @@ export default function Index() {
         <div className="flex items-center justify-between mb-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-primary/10 transition-all"><ChevronLeft className="h-5 w-5" /></Button>
           <h2 className="text-lg font-bold tracking-tight">{MONTH_NAMES[month]} {year}</h2>
-          <Button variant="ghost" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="hover:bg-primary/10 transition-all"><ChevronRight className="h-5 w-5" /></Button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 mb-1">
