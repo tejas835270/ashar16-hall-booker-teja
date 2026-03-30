@@ -188,8 +188,8 @@ export default function Index() {
 
       <div className="bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ChevronLeft className="h-5 w-5" /></Button>
-          <h2 className="text-lg font-semibold">{MONTH_NAMES[month]} {year}</h2>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-primary/10 transition-all"><ChevronLeft className="h-5 w-5" /></Button>
+          <h2 className="text-lg font-bold tracking-tight">{MONTH_NAMES[month]} {year}</h2>
           <Button variant="ghost" size="icon" onClick={() => navigate(1)}><ChevronRight className="h-5 w-5" /></Button>
         </div>
 
