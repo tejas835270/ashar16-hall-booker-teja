@@ -325,7 +325,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">📝 Security Deposit: ₹{deposit.toLocaleString('en-IN')}</p>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">To be paid via cheque made out to: <strong>"Ashar 16 Co. Op. Societies Association Ltd"</strong></p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">To be paid via cheque made out to: <strong>"{settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd'}"</strong></p>
                 </div>
 
                 {showQr && (
