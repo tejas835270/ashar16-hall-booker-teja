@@ -595,8 +595,18 @@ function PenaltyModal({ booking, onClose, onSaved }: { booking: Booking; onClose
       <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle>Penalty — {booking.id}</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1.5"><Label>Penalty Amount (₹)</Label><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={0} /></div>
-          <div className="space-y-1.5"><Label>Reason</Label><Input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Property damage" /></div>
+          <div className="text-xs text-muted-foreground">
+            <p><strong>{booking.name}</strong> • Flat {booking.flatNumber} • {new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Penalty Amount (₹)</Label>
+            <Input type="number" value={amount} onChange={e => setAmount(e.target.value)} min={0} placeholder="e.g. 500" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reason / Message</Label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Late vacating — hall not cleared by 10 PM. ₹500 penalty applied per society rules." rows={3} />
+            <p className="text-xs text-muted-foreground">This message will be stored against the booking record.</p>
+          </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button className="flex-1" disabled={saving} onClick={handleSave}>{saving ? 'Saving...' : 'Save Penalty'}</Button>
