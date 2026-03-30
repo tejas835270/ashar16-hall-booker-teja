@@ -77,6 +77,7 @@ export interface HallSettings {
   upiId?: string;
   paymentQrUrl?: string;
   penaltyNotice?: string;
+  chequePayeeName?: string;
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
