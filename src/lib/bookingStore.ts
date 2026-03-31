@@ -6,13 +6,22 @@ export type UserType = 'resident' | 'tenant';
 export type TimeSlot = 'full' | 'half-slot1' | 'half-slot2' | 'custom';
 export type BookingType = 'online' | 'manual';
 
+export interface CustomField {
+  id: string;
+  label: string;
+  type: 'text' | 'select' | 'checkbox';
+  placeholder?: string;
+  required: boolean;
+  options?: string[]; // for select type
+}
+
 export interface Booking {
   id: string;
   flatNumber: string;
   name: string;
   phone?: string;
   eventType: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   timeSlot: TimeSlot;
   customStartHour?: number;
   customEndHour?: number;
@@ -28,9 +37,9 @@ export interface Booking {
   paymentScreenshotUrl?: string;
   penaltyAmount?: number;
   penaltyReason?: string;
+  customData?: Record<string, string>;
 }
 
-// Map DB row to app Booking
 function rowToBooking(row: any): Booking {
   return {
     id: row.id,
@@ -54,13 +63,14 @@ function rowToBooking(row: any): Booking {
     paymentScreenshotUrl: row.payment_screenshot_url || undefined,
     penaltyAmount: row.penalty_amount ?? undefined,
     penaltyReason: row.penalty_reason || undefined,
+    customData: row.custom_data || undefined,
   };
 }
 
-// Settings cache (loaded async)
 let cachedSettings: HallSettings | null = null;
 
 export interface HallSettings {
+  societyName: string;
   rules: string[];
   rulesPdfUrl?: string;
   rulesPdfName?: string;
@@ -78,9 +88,11 @@ export interface HallSettings {
   paymentQrUrl?: string;
   penaltyNotice?: string;
   chequePayeeName?: string;
+  customFields: CustomField[];
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
+  societyName: 'Ashar 16 CHSL',
   rules: [],
   hallOpenTime: 8,
   hallCloseTime: 22,
@@ -97,10 +109,12 @@ const DEFAULT_SETTINGS: HallSettings = {
   ],
   paymentMode: 'both',
   upiId: '',
+  customFields: [],
 };
 
 function rowToSettings(row: any): HallSettings {
   return {
+    societyName: row.society_name || 'Ashar 16 CHSL',
     rules: Array.isArray(row.rules) ? row.rules : [],
     rulesPdfUrl: row.rules_pdf_url || undefined,
     rulesPdfName: row.rules_pdf_name || undefined,
@@ -115,10 +129,10 @@ function rowToSettings(row: any): HallSettings {
     paymentQrUrl: row.payment_qr_url || undefined,
     penaltyNotice: row.penalty_notice || undefined,
     chequePayeeName: row.cheque_payee_name || 'Ashar 16 Co. Op. Societies Association Ltd',
+    customFields: Array.isArray(row.custom_fields) ? row.custom_fields : [],
   };
 }
 
-// ---- SETTINGS ----
 export async function fetchSettings(): Promise<HallSettings> {
   const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
   if (error || !data) return DEFAULT_SETTINGS;
@@ -133,6 +147,7 @@ export function getCachedSettings(): HallSettings {
 
 export async function saveSettings(settings: HallSettings): Promise<void> {
   await supabase.from('settings').update({
+    society_name: settings.societyName,
     rules: settings.rules as any,
     rules_pdf_url: settings.rulesPdfUrl || null,
     rules_pdf_name: settings.rulesPdfName || null,
@@ -147,12 +162,13 @@ export async function saveSettings(settings: HallSettings): Promise<void> {
     payment_qr_url: settings.paymentQrUrl || null,
     penalty_notice: settings.penaltyNotice || null,
     cheque_payee_name: settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd',
+    custom_fields: settings.customFields as any,
     updated_at: new Date().toISOString(),
   }).eq('id', 1);
   cachedSettings = settings;
 }
 
-// ---- SLOT/HALL HELPERS (sync, use cached settings) ----
+// ---- SLOT/HALL HELPERS ----
 export function getSlotTimes(s?: HallSettings) {
   const settings = s || getCachedSettings();
   return {
@@ -186,7 +202,7 @@ export function getDynamicDeposit(s?: HallSettings): number {
   return (s || getCachedSettings()).deposit;
 }
 
-// ---- BOOKINGS (async, Supabase) ----
+// ---- BOOKINGS ----
 export async function fetchBookings(): Promise<Booking[]> {
   const { data, error } = await supabase.from('bookings').select('*').order('created_at', { ascending: false });
   if (error || !data) return [];
@@ -244,7 +260,7 @@ export async function isDateAvailable(date: string): Promise<boolean> {
 
 export async function createBooking(data: Omit<Booking, 'id' | 'total' | 'status' | 'createdAt'>): Promise<Booking> {
   const id = uuidv4().slice(0, 8).toUpperCase();
-  const total = data.rent; // deposit is paid separately via cheque
+  const total = data.rent;
   const now = new Date().toISOString();
 
   const row = {
@@ -268,6 +284,7 @@ export async function createBooking(data: Omit<Booking, 'id' | 'total' | 'status
     payment_screenshot_url: data.paymentScreenshotUrl || null,
     penalty_amount: 0,
     penalty_reason: null,
+    custom_data: data.customData || {},
     created_at: now,
   };
 
@@ -304,8 +321,8 @@ export async function updateBooking(id: string, updates: Partial<Booking>): Prom
   if (updates.paymentScreenshotUrl !== undefined) dbUpdates.payment_screenshot_url = updates.paymentScreenshotUrl;
   if (updates.penaltyAmount !== undefined) dbUpdates.penalty_amount = updates.penaltyAmount;
   if (updates.penaltyReason !== undefined) dbUpdates.penalty_reason = updates.penaltyReason;
+  if (updates.customData !== undefined) dbUpdates.custom_data = updates.customData;
 
-  // Recalculate total if rent or deposit changed
   if (updates.rent !== undefined || updates.deposit !== undefined) {
     const { data: current } = await supabase.from('bookings').select('rent, deposit').eq('id', id).single();
     if (current) {

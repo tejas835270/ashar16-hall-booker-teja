@@ -1,12 +1,14 @@
 import { useState, useRef } from 'react';
-import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X, Image } from 'lucide-react';
+import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X, Image, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { saveSettings, uploadFile, type HallSettings } from '@/lib/bookingStore';
+import { saveSettings, uploadFile, type HallSettings, type CustomField } from '@/lib/bookingStore';
 import { toast } from 'sonner';
+import { v4 as uuidv4 } from 'uuid';
 
 const DEFAULT_RULES = [
   'The community hall must be vacated by 10:00 PM sharp.',
@@ -42,6 +44,7 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
 
   function handleReset() {
     const defaults: HallSettings = {
+      societyName: 'Ashar 16 CHSL',
       rules: DEFAULT_RULES,
       hallOpenTime: 8,
       hallCloseTime: 22,
@@ -55,6 +58,7 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       ],
       paymentMode: 'both',
       upiId: '',
+      customFields: [],
     };
     setSettings(defaults);
   }
@@ -72,6 +76,30 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       ...settings,
       pricing: { ...settings.pricing, [userType]: { ...settings.pricing[userType], [field]: value } },
     });
+  }
+
+  // Custom fields CRUD
+  function addCustomField() {
+    const newField: CustomField = {
+      id: uuidv4().slice(0, 8),
+      label: '',
+      type: 'text',
+      placeholder: '',
+      required: false,
+      options: [],
+    };
+    setSettings({ ...settings, customFields: [...settings.customFields, newField] });
+  }
+
+  function updateCustomField(id: string, updates: Partial<CustomField>) {
+    setSettings({
+      ...settings,
+      customFields: settings.customFields.map(f => f.id === id ? { ...f, ...updates } : f),
+    });
+  }
+
+  function removeCustomField(id: string) {
+    setSettings({ ...settings, customFields: settings.customFields.filter(f => f.id !== id) });
   }
 
   async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -103,10 +131,25 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
     e.target.value = '';
   }
 
+  const sectionClass = "bg-card rounded-xl shadow-card border border-border/40 p-5";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Society Name */}
+      <div className={sectionClass}>
+        <h3 className="font-semibold text-base mb-4">Society Name</h3>
+        <div className="space-y-1.5">
+          <Label>Display name used everywhere (heading, PDFs, receipts)</Label>
+          <Input
+            placeholder="e.g. Ashar 16 CHSL"
+            value={settings.societyName}
+            onChange={e => setSettings({ ...settings, societyName: e.target.value })}
+          />
+        </div>
+      </div>
+
       {/* Cheque Payee Name */}
-      <div className="bg-card rounded-xl shadow-card p-5">
+      <div className={sectionClass}>
         <h3 className="font-semibold text-base mb-4">Cheque Payee Name</h3>
         <div className="space-y-1.5">
           <Label>Payee name shown to residents for security deposit cheques</Label>
@@ -115,12 +158,95 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
             value={settings.chequePayeeName || ''}
             onChange={e => setSettings({ ...settings, chequePayeeName: e.target.value })}
           />
-          <p className="text-xs text-muted-foreground">This name appears on the payment & confirmation screens.</p>
+        </div>
+      </div>
+
+      {/* Custom Form Fields Builder */}
+      <div className={sectionClass}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-base">Custom Booking Fields</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Add extra fields to the booking form for residents</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={addCustomField} className="rounded-lg">
+            <Plus className="h-4 w-4 mr-1" /> Add Field
+          </Button>
+        </div>
+        {settings.customFields.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6 bg-accent/50 rounded-lg">
+            No custom fields yet. Click "Add Field" to create one.
+          </p>
+        )}
+        <div className="space-y-3">
+          {settings.customFields.map((field, idx) => (
+            <div key={field.id} className="bg-accent/50 rounded-lg p-4 space-y-3 border border-border/30">
+              <div className="flex items-center gap-2">
+                <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                <span className="text-xs font-mono text-muted-foreground shrink-0">#{idx + 1}</span>
+                <div className="flex-1" />
+                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeCustomField(field.id)}>
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Field Label *</Label>
+                  <Input
+                    value={field.label}
+                    onChange={e => updateCustomField(field.id, { label: e.target.value })}
+                    placeholder="e.g. Catering Required"
+                    className="h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Field Type</Label>
+                  <Select value={field.type} onValueChange={v => updateCustomField(field.id, { type: v as CustomField['type'] })}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="text">Text Input</SelectItem>
+                      <SelectItem value="select">Dropdown</SelectItem>
+                      <SelectItem value="checkbox">Checkbox</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {field.type !== 'checkbox' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Placeholder</Label>
+                  <Input
+                    value={field.placeholder || ''}
+                    onChange={e => updateCustomField(field.id, { placeholder: e.target.value })}
+                    placeholder="e.g. Enter details..."
+                    className="h-9 text-sm"
+                  />
+                </div>
+              )}
+              {field.type === 'select' && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Options (comma-separated)</Label>
+                  <Input
+                    value={(field.options || []).join(', ')}
+                    onChange={e => updateCustomField(field.id, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="e.g. Yes, No, Maybe"
+                    className="h-9 text-sm"
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={field.required}
+                  onCheckedChange={v => updateCustomField(field.id, { required: !!v })}
+                  id={`req-${field.id}`}
+                />
+                <label htmlFor={`req-${field.id}`} className="text-xs text-muted-foreground cursor-pointer">Required field</label>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Payment Settings */}
-      <div className="bg-card rounded-xl shadow-card p-5">
+      <div className={sectionClass}>
         <h3 className="font-semibold text-base mb-4">Payment Settings</h3>
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -159,7 +285,7 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       </div>
 
       {/* Hall Timings */}
-      <div className="bg-card rounded-xl shadow-card p-5">
+      <div className={sectionClass}>
         <h3 className="font-semibold text-base mb-4">Hall Timings</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
@@ -180,7 +306,7 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       </div>
 
       {/* Pricing */}
-      <div className="bg-card rounded-xl shadow-card p-5">
+      <div className={sectionClass}>
         <h3 className="font-semibold text-base mb-4">Pricing (₹)</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {(['resident', 'tenant'] as const).map(userType => (
@@ -200,10 +326,10 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       </div>
 
       {/* Rules & Regulations */}
-      <div className="bg-card rounded-xl shadow-card p-5">
+      <div className={sectionClass}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-base">Rules & Regulations</h3>
-          <Button size="sm" variant="outline" onClick={addRule}><Plus className="h-4 w-4 mr-1" /> Add Rule</Button>
+          <Button size="sm" variant="outline" onClick={addRule} className="rounded-lg"><Plus className="h-4 w-4 mr-1" /> Add Rule</Button>
         </div>
         <div className="space-y-3">
           {settings.rules.map((rule, i) => (
@@ -241,8 +367,8 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
 
       {/* Actions */}
       <div className="flex gap-3 justify-end">
-        <Button variant="outline" onClick={handleReset}><RotateCcw className="h-4 w-4 mr-1.5" /> Reset to Defaults</Button>
-        <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-1.5" /> {saving ? 'Saving...' : 'Save Settings'}</Button>
+        <Button variant="outline" onClick={handleReset} className="rounded-lg"><RotateCcw className="h-4 w-4 mr-1.5" /> Reset to Defaults</Button>
+        <Button onClick={handleSave} disabled={saving} className="rounded-lg"><Save className="h-4 w-4 mr-1.5" /> {saving ? 'Saving...' : 'Save Settings'}</Button>
       </div>
     </div>
   );

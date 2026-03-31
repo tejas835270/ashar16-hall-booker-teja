@@ -25,6 +25,7 @@ interface Props {
 }
 
 function buildGuardMessage(booking: Booking, settings: HallSettings): string {
+  const societyName = settings.societyName || 'Ashar 16 CHSL';
   const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -34,7 +35,7 @@ function buildGuardMessage(booking: Booking, settings: HallSettings): string {
     : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
 
   return [
-    `🏢 *Ashar 16 CHSL – Booking Confirmation*`,
+    `🏢 *${societyName} – Booking Confirmation*`,
     ``,
     `📋 Booking ID: *${booking.id}*`,
     `📅 Date: ${formattedDate}`,
@@ -75,6 +76,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [conflicts, setConflicts] = useState<Booking[]>([]);
   const [slotAvailableState, setSlotAvailableState] = useState(true);
 
+  // Custom field values
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+
   useEffect(() => {
     fetchSettings().then(setSettings);
     fetchBookingsForDate(date).then(setConflicts);
@@ -114,7 +118,15 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const phoneValid = /^\d{10}$/.test(phone.trim());
   const memberCountNum = parseInt(memberCount) || 0;
   const needsBothHalls = memberCountNum > 80 && hall !== 'both';
-  const formValid = flatNumber.trim() && name.trim() && phoneValid && eventType.trim() && memberCountNum > 0 && agreed && slotAvailableState && customValid && !needsBothHalls;
+
+  // Check required custom fields
+  const customFieldsValid = settings.customFields.every(f => {
+    if (!f.required) return true;
+    const val = customFieldValues[f.id];
+    return val && val.trim().length > 0;
+  });
+
+  const formValid = flatNumber.trim() && name.trim() && phoneValid && eventType.trim() && memberCountNum > 0 && agreed && slotAvailableState && customValid && !needsBothHalls && customFieldsValid;
 
   function handleSubmitForm() {
     if (!formValid) return;
@@ -137,7 +149,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     if (!screenshotFile) { toast.error('Please upload payment screenshot to proceed'); return; }
     setPaying(true);
     try {
-      // Upload screenshot to storage
       const url = await uploadFile(screenshotFile, 'payment-screenshots');
       const b = await createBooking({
         flatNumber: flatNumber.trim(),
@@ -154,6 +165,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
         deposit,
         bookingType: 'online',
         paymentScreenshotUrl: url || undefined,
+        customData: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
       });
       setBooking(b);
       setStep('confirmation');
@@ -183,6 +195,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     }
   }
 
+  const societyName = settings.societyName || 'Ashar 16 CHSL';
   const formattedDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   const slotLabel = (s: TimeSlot) => {
@@ -191,21 +204,19 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   };
 
   const showQr = settings.paymentMode === 'qr' || settings.paymentMode === 'both';
-
-  // Verification URL for QR in PDF
   const verificationUrl = booking ? `${window.location.origin}/guard?verify=${booking.id}` : '';
 
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4" onClick={onClose}>
-        <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-between p-4 border-b">
+        <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-border/40" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b border-border/50">
             <h2 className="font-semibold text-lg">
               {step === 'form' && 'Book Community Hall'}
               {step === 'payment' && 'Payment'}
               {step === 'confirmation' && 'Booking Confirmed!'}
             </h2>
-            <button onClick={step === 'confirmation' ? onBooked : onClose} className="text-muted-foreground hover:text-foreground">
+            <button onClick={step === 'confirmation' ? onBooked : onClose} className="text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -213,8 +224,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
           <div className="p-5">
             {step === 'form' && (
               <div className="space-y-4">
-                <div className="bg-accent rounded-lg p-3 text-center">
-                  <p className="text-sm text-muted-foreground">Selected Date</p>
+                <div className="bg-accent/60 rounded-lg p-3 text-center border border-border/30">
+                  <p className="text-xs text-muted-foreground">Selected Date</p>
                   <p className="font-semibold text-foreground">{formattedDate}</p>
                 </div>
 
@@ -288,8 +299,49 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </div>
                 )}
 
+                {/* Dynamic Custom Fields */}
+                {settings.customFields.length > 0 && (
+                  <div className="space-y-3 pt-2 border-t border-border/30">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Additional Information</p>
+                    {settings.customFields.map(field => (
+                      <div key={field.id} className="space-y-1.5">
+                        <Label>{field.label} {field.required && '*'}</Label>
+                        {field.type === 'text' && (
+                          <Input
+                            placeholder={field.placeholder || ''}
+                            value={customFieldValues[field.id] || ''}
+                            onChange={e => setCustomFieldValues({ ...customFieldValues, [field.id]: e.target.value })}
+                          />
+                        )}
+                        {field.type === 'select' && (
+                          <Select
+                            value={customFieldValues[field.id] || ''}
+                            onValueChange={v => setCustomFieldValues({ ...customFieldValues, [field.id]: v })}
+                          >
+                            <SelectTrigger><SelectValue placeholder={field.placeholder || 'Select...'} /></SelectTrigger>
+                            <SelectContent>
+                              {(field.options || []).map(opt => (
+                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {field.type === 'checkbox' && (
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={customFieldValues[field.id] === 'Yes'}
+                              onCheckedChange={v => setCustomFieldValues({ ...customFieldValues, [field.id]: v ? 'Yes' : 'No' })}
+                            />
+                            <span className="text-sm text-muted-foreground">{field.placeholder || field.label}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {conflicts.length > 0 && (
-                  <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 space-y-1">
+                  <div className="bg-warning/8 border border-warning/20 rounded-lg p-3 space-y-1">
                     <p className="text-xs font-medium text-warning">Existing bookings on this date:</p>
                     {conflicts.map(c => (
                       <p key={c.id} className="text-xs text-muted-foreground">
@@ -311,17 +363,17 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </label>
                 </div>
 
-                <Button className="w-full" disabled={!formValid} onClick={handleSubmitForm}>Proceed to Payment</Button>
+                <Button className="w-full rounded-lg" disabled={!formValid} onClick={handleSubmitForm}>Proceed to Payment</Button>
               </div>
             )}
 
             {step === 'payment' && (
               <div className="space-y-4">
-                <div className="bg-accent rounded-lg p-4 space-y-2 text-sm">
+                <div className="bg-accent/60 rounded-lg p-4 space-y-2 text-sm border border-border/30">
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall</span><span className="font-medium">{HALL_LABELS[hall]}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Slot</span><span className="font-medium">{slotLabel(timeSlot)}</span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Hall Rent</span><span className="font-medium">₹{rent.toLocaleString('en-IN')}</span></div>
-                  <div className="border-t pt-2 flex justify-between font-semibold"><span>Total Payable (Online)</span><span>₹{rent.toLocaleString('en-IN')}</span></div>
+                  <div className="border-t border-border/50 pt-2 flex justify-between font-semibold"><span>Total Payable (Online)</span><span>₹{rent.toLocaleString('en-IN')}</span></div>
                 </div>
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">📝 Security Deposit: ₹{deposit.toLocaleString('en-IN')}</p>
@@ -329,7 +381,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 </div>
 
                 {showQr && (
-                  <div className="bg-accent rounded-lg p-4 space-y-3 text-center">
+                  <div className="bg-accent/60 rounded-lg p-4 space-y-3 text-center border border-border/30">
                     <p className="text-sm font-medium flex items-center justify-center gap-2"><CreditCard className="h-4 w-4" /> Scan QR to Pay</p>
                     {settings.paymentQrUrl ? (
                       <img src={settings.paymentQrUrl} alt="Payment QR" className="mx-auto max-w-[200px] rounded-lg" />
@@ -346,7 +398,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </div>
                 )}
 
-                <div className="bg-accent rounded-lg p-4 space-y-3">
+                <div className="bg-accent/60 rounded-lg p-4 space-y-3 border border-border/30">
                   <p className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Upload Payment Screenshot *</p>
                   {screenshotPreview ? (
                     <div className="relative">
@@ -356,7 +408,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       </button>
                     </div>
                   ) : (
-                    <Button variant="outline" className="w-full" onClick={() => screenshotInputRef.current?.click()}>
+                    <Button variant="outline" className="w-full rounded-lg" onClick={() => screenshotInputRef.current?.click()}>
                       <Upload className="h-4 w-4 mr-1.5" /> Choose Image
                     </Button>
                   )}
@@ -364,8 +416,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 </div>
 
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>Back</Button>
-                  <Button className="flex-1" onClick={handlePay} disabled={paying || !screenshotFile}>
+                  <Button variant="outline" className="flex-1 rounded-lg" onClick={() => setStep('form')}>Back</Button>
+                  <Button className="flex-1 rounded-lg" onClick={handlePay} disabled={paying || !screenshotFile}>
                     {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm & Pay ₹${rent.toLocaleString('en-IN')}`}
                   </Button>
                 </div>
@@ -375,7 +427,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
             {step === 'confirmation' && booking && (
               <div className="text-center space-y-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex justify-center">
-                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-success/20 to-success/5 flex items-center justify-center shadow-lg shadow-success/10 animate-in zoom-in duration-500">
+                  <div className="h-20 w-20 rounded-full bg-success/10 flex items-center justify-center animate-in zoom-in duration-500">
                     <CheckCircle className="h-10 w-10 text-success" />
                   </div>
                 </div>
@@ -389,11 +441,11 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Please submit your Security Deposit cheque of <strong>₹{booking.deposit.toLocaleString('en-IN')}</strong> to the society office, made out to <strong>"{settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd'}"</strong>.</p>
                 </div>
 
-                <div className="bg-accent rounded-lg p-4 inline-block mx-auto">
+                <div className="bg-accent/60 rounded-lg p-4 inline-block mx-auto border border-border/30">
                   <QRCode value={verificationUrl || booking.id} size={160} />
                 </div>
 
-                <div className="bg-accent rounded-lg p-3 text-sm text-left space-y-1">
+                <div className="bg-accent/60 rounded-lg p-3 text-sm text-left space-y-1 border border-border/30">
                   <p><span className="text-muted-foreground">Date:</span> {formattedDate}</p>
                   <p><span className="text-muted-foreground">Hall:</span> {HALL_LABELS[booking.hall]}</p>
                   <p><span className="text-muted-foreground">Flat:</span> {booking.flatNumber}</p>
@@ -402,22 +454,28 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p><span className="text-muted-foreground">Event:</span> {booking.eventType}</p>
                   <p><span className="text-muted-foreground">Attendees:</span> {booking.memberCount}</p>
                   <p><span className="text-muted-foreground">Amount Paid:</span> ₹{booking.total.toLocaleString('en-IN')}</p>
+                  {/* Show custom field values */}
+                  {booking.customData && settings.customFields.map(f => {
+                    const val = booking.customData?.[f.id];
+                    if (!val) return null;
+                    return <p key={f.id}><span className="text-muted-foreground">{f.label}:</span> {val}</p>;
+                  })}
                 </div>
 
                 <p className="text-xs text-muted-foreground">Show this QR code to the security guard on the day of your event.</p>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
                     <Download className="h-4 w-4 mr-1.5" /> PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleCopyToClipboard}>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={handleCopyToClipboard}>
                     <Send className="h-4 w-4 mr-1.5" /> Copy
                   </Button>
                 </div>
-                <Button variant="secondary" size="sm" className="w-full" onClick={handleShareWhatsApp}>
+                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsApp}>
                   <Send className="h-4 w-4 mr-1.5" /> Share with Guard via WhatsApp
                 </Button>
-                <Button className="w-full" onClick={onBooked}>Done</Button>
+                <Button className="w-full rounded-lg" onClick={onBooked}>Done</Button>
               </div>
             )}
           </div>
@@ -427,7 +485,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
       <Dialog open={showTerms} onOpenChange={setShowTerms}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rules & Regulations – Ashar 16 CHSL</DialogTitle>
+            <DialogTitle>Rules & Regulations – {societyName}</DialogTitle>
           </DialogHeader>
           <div className="text-sm text-muted-foreground space-y-3">
             {settings.rules.map((rule, i) => (
