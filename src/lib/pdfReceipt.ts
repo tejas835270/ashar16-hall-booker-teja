@@ -1,19 +1,21 @@
 import jsPDF from 'jspdf';
-import { type Booking, HALL_LABELS, getSlotTimes, formatHour } from './bookingStore';
+import { type Booking, type HallSettings, HALL_LABELS, getSlotTimes, formatHour, getCachedSettings } from './bookingStore';
 
 export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
+  const settings = getCachedSettings();
+  const societyName = settings.societyName || 'Ashar 16 CHSL';
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const w = doc.internal.pageSize.getWidth();
   const margin = 20;
   let y = 25;
 
   // Header bar
-  doc.setFillColor(30, 64, 120);
+  doc.setFillColor(30, 55, 90);
   doc.rect(0, 0, w, 40, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('Ashar 16 CHSL', margin, y);
+  doc.text(societyName, margin, y);
   y += 8;
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
@@ -21,15 +23,14 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   y = 52;
 
   // Booking ID strip
-  doc.setFillColor(240, 245, 250);
+  doc.setFillColor(240, 243, 248);
   doc.rect(margin, y, w - margin * 2, 14, 'F');
-  doc.setTextColor(30, 64, 120);
+  doc.setTextColor(30, 55, 90);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.text(`Booking ID: ${booking.id}`, margin + 5, y + 9);
   y += 24;
 
-  // Details
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -58,6 +59,15 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
     ['Booking Type', booking.bookingType === 'manual' ? 'Manual (Admin)' : 'Online'],
   ];
 
+  // Add custom data fields
+  if (booking.customData) {
+    const customFields = settings.customFields || [];
+    customFields.forEach(field => {
+      const val = booking.customData?.[field.id];
+      if (val) rows.push([field.label, val]);
+    });
+  }
+
   const colX = margin;
   const valX = margin + 50;
 
@@ -81,7 +91,7 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   y += 8;
 
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 120);
+  doc.setTextColor(30, 55, 90);
   doc.setFontSize(11);
   doc.text('Payment Summary', margin + 5, y);
   y += 8;
@@ -98,13 +108,12 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   doc.setDrawColor(180, 190, 200);
   doc.line(margin + 5, y - 2, w - margin - 5, y - 2);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 120);
+  doc.setTextColor(30, 55, 90);
   doc.text('Total Paid', margin + 5, y + 2);
   doc.text(`₹${booking.total.toLocaleString('en-IN')}`, w - margin - 5, y + 2, { align: 'right' });
 
   y += 20;
 
-  // QR Code section - generate a simple text-based QR indicator
   if (verificationUrl) {
     doc.setFillColor(245, 247, 250);
     doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'F');
@@ -112,7 +121,7 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
     doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'S');
     y += 8;
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 64, 120);
+    doc.setTextColor(30, 55, 90);
     doc.setFontSize(10);
     doc.text('Verification QR Code', margin + 5, y);
     y += 6;
@@ -125,7 +134,6 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
     y += 14;
   }
 
-  // Note
   doc.setFontSize(9);
   doc.setTextColor(120, 120, 120);
   doc.setFont('helvetica', 'italic');
@@ -133,12 +141,11 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   y += 6;
   doc.text('For any queries, contact the society office.', margin, y);
 
-  // Footer
   const footerY = doc.internal.pageSize.getHeight() - 12;
   doc.setFontSize(8);
   doc.setTextColor(160, 160, 160);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ashar 16 CHSL – Community Hall Booking System', w / 2, footerY, { align: 'center' });
+  doc.text(`${societyName} – Community Hall Booking System`, w / 2, footerY, { align: 'center' });
 
   doc.save(`Booking_${booking.id}.pdf`);
 }
