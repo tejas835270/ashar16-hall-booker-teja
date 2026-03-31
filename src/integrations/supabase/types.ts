@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           booking_type: string
           created_at: string
+          custom_data: Json | null
           custom_end_hour: number | null
           custom_start_hour: number | null
           date: string
@@ -41,6 +42,7 @@ export type Database = {
         Insert: {
           booking_type?: string
           created_at?: string
+          custom_data?: Json | null
           custom_end_hour?: number | null
           custom_start_hour?: number | null
           date: string
@@ -64,6 +66,7 @@ export type Database = {
         Update: {
           booking_type?: string
           created_at?: string
+          custom_data?: Json | null
           custom_end_hour?: number | null
           custom_start_hour?: number | null
           date?: string
@@ -89,6 +92,7 @@ export type Database = {
       settings: {
         Row: {
           cheque_payee_name: string | null
+          custom_fields: Json | null
           deposit: number
           hall_close_time: number
           hall_open_time: number
@@ -102,11 +106,13 @@ export type Database = {
           rules: Json
           rules_pdf_name: string | null
           rules_pdf_url: string | null
+          society_name: string | null
           updated_at: string
           upi_id: string | null
         }
         Insert: {
           cheque_payee_name?: string | null
+          custom_fields?: Json | null
           deposit?: number
           hall_close_time?: number
           hall_open_time?: number
@@ -120,11 +126,13 @@ export type Database = {
           rules?: Json
           rules_pdf_name?: string | null
           rules_pdf_url?: string | null
+          society_name?: string | null
           updated_at?: string
           upi_id?: string | null
         }
         Update: {
           cheque_payee_name?: string | null
+          custom_fields?: Json | null
           deposit?: number
           hall_close_time?: number
           hall_open_time?: number
@@ -138,6 +146,7 @@ export type Database = {
           rules?: Json
           rules_pdf_name?: string | null
           rules_pdf_url?: string | null
+          society_name?: string | null
           updated_at?: string
           upi_id?: string | null
         }
