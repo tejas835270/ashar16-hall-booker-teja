@@ -455,6 +455,63 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Guidance Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-primary" />
+              Import Bookings from Excel
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-accent/50 border border-border/50 rounded-xl p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-1.5">Mandatory Fields</p>
+                  <p className="text-xs text-muted-foreground mb-2">Your Excel file <strong>must</strong> contain these columns:</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 pl-6">
+                {[
+                  { field: 'Name', desc: 'Full name of the person booking' },
+                  { field: 'Flat', desc: 'Flat number (e.g. A-101)' },
+                  { field: 'Date', desc: 'Booking date (YYYY-MM-DD format)' },
+                ].map(f => (
+                  <div key={f.field} className="flex items-center gap-2 text-xs">
+                    <span className="font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">{f.field}</span>
+                    <span className="text-muted-foreground">— {f.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-accent/30 border border-border/50 rounded-xl p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground">Optional Fields</p>
+              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                {['Event', 'Phone', 'Hall', 'Members', 'Rent', 'Deposit'].map(f => (
+                  <span key={f} className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{f}</span>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Rows missing <strong>Name</strong>, <strong>Flat</strong>, or <strong>Date</strong> will be skipped automatically.
+            </p>
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleDownloadSample}>
+                <FileDown className="h-4 w-4 mr-1.5" /> Download Sample
+              </Button>
+              <Button className="flex-1" onClick={() => importFileRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-1.5" /> Upload File
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
