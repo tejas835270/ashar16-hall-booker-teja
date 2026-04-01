@@ -283,6 +283,8 @@ export default function Admin() {
 
       {tab === 'settings' && settings && <AdminSettings initialSettings={settings} onSaved={() => setRefreshKey(k => k + 1)} />}
 
+      {tab === 'analytics' && <AnalyticsDashboard bookings={bookings} />}
+
       {tab === 'bookings' && (
         <>
           {/* Stats */}
