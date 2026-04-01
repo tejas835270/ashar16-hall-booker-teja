@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload, Download, FileUp } from 'lucide-react';
+import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload, Download, FileUp, BarChart3, FileDown, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,11 +25,12 @@ import {
 } from '@/lib/bookingStore';
 import { getAuth, isAdmin, logout } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-type Tab = 'bookings' | 'settings';
+type Tab = 'bookings' | 'analytics' | 'settings';
 type SortDir = 'asc' | 'desc';
 
 function getBookingTimeStatus(b: Booking): 'past' | 'current' | 'upcoming' {
@@ -180,6 +181,28 @@ export default function Admin() {
     toast.success('Bookings exported to Excel');
   }
 
+  // --- Generate sample Excel for import ---
+  function handleDownloadSample() {
+    const sampleRows = [
+      {
+        'Name': 'John Doe',
+        'Flat': 'A-101',
+        'Date': '2026-04-15',
+        'Event': 'Birthday',
+        'Phone': '9876543210',
+        'Hall': 'B-Wing Hall',
+        'Members': 50,
+        'Rent': 4000,
+        'Deposit': 2000,
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sample');
+    XLSX.writeFile(wb, 'bookings_import_sample.xlsx');
+    toast.success('Sample file downloaded');
+  }
+
   // --- Import from Excel ---
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -192,14 +215,14 @@ export default function Admin() {
       if (rows.length === 0) { toast.error('No data found in file'); return; }
 
       let imported = 0;
+      let skipped = 0;
       for (const row of rows) {
         const name = row['Name'] || row['name'] || '';
         const flat = row['Flat'] || row['flat_number'] || row['Flat Number'] || '';
         const date = row['Date'] || row['date'] || '';
         const event = row['Event'] || row['event_type'] || row['Event Type'] || 'General';
-        if (!name || !flat || !date) continue;
+        if (!name || !flat || !date) { skipped++; continue; }
 
-        // Map hall
         let hall: HallOption = 'b-wing';
         const hallStr = String(row['Hall'] || row['hall'] || '').toLowerCase();
         if (hallStr.includes('both')) hall = 'both';
@@ -227,7 +250,8 @@ export default function Admin() {
           imported++;
         } catch {}
       }
-      toast.success(`Imported ${imported} bookings from Excel`);
+      toast.success(`Imported ${imported} bookings${skipped ? `, ${skipped} skipped (missing required fields)` : ''}`);
+      setShowImportModal(false);
       setRefreshKey(k => k + 1);
     } catch (err) {
       toast.error('Failed to read Excel file');
@@ -246,6 +270,9 @@ export default function Admin() {
             <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
+            <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
+            </button>
             <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <Settings className="h-4 w-4 inline mr-1.5" />Settings
             </button>
@@ -255,6 +282,8 @@ export default function Admin() {
       </div>
 
       {tab === 'settings' && settings && <AdminSettings initialSettings={settings} onSaved={() => setRefreshKey(k => k + 1)} />}
+
+      {tab === 'analytics' && <AnalyticsDashboard bookings={bookings} />}
 
       {tab === 'bookings' && (
         <>
@@ -290,7 +319,7 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1.5" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()}>
+            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
               <FileUp className="h-4 w-4 mr-1.5" /> Import
             </Button>
             <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
@@ -426,6 +455,63 @@ export default function Admin() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Guidance Modal */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5 text-primary" />
+              Import Bookings from Excel
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-accent/50 border border-border/50 rounded-xl p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-1.5">Mandatory Fields</p>
+                  <p className="text-xs text-muted-foreground mb-2">Your Excel file <strong>must</strong> contain these columns:</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-1.5 pl-6">
+                {[
+                  { field: 'Name', desc: 'Full name of the person booking' },
+                  { field: 'Flat', desc: 'Flat number (e.g. A-101)' },
+                  { field: 'Date', desc: 'Booking date (YYYY-MM-DD format)' },
+                ].map(f => (
+                  <div key={f.field} className="flex items-center gap-2 text-xs">
+                    <span className="font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">{f.field}</span>
+                    <span className="text-muted-foreground">— {f.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-accent/30 border border-border/50 rounded-xl p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground">Optional Fields</p>
+              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                {['Event', 'Phone', 'Hall', 'Members', 'Rent', 'Deposit'].map(f => (
+                  <span key={f} className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{f}</span>
+                ))}
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Rows missing <strong>Name</strong>, <strong>Flat</strong>, or <strong>Date</strong> will be skipped automatically.
+            </p>
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleDownloadSample}>
+                <FileDown className="h-4 w-4 mr-1.5" /> Download Sample
+              </Button>
+              <Button className="flex-1" onClick={() => importFileRef.current?.click()}>
+                <Upload className="h-4 w-4 mr-1.5" /> Upload File
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
