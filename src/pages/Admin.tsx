@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload } from 'lucide-react';
+import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload, Download, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,19 +9,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
   fetchBookings, cancelBooking, HALL_LABELS, formatHour, getSlotTimes,
   createBooking, updateBooking, getRent, getDynamicDeposit, isSlotAvailable,
-  fetchSettings, uploadFile,
+  fetchSettings, uploadFile, deleteBooking,
   type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
 import { getAuth, isAdmin, logout } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
 import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 type Tab = 'bookings' | 'settings';
 type SortDir = 'asc' | 'desc';
@@ -43,16 +49,22 @@ export default function Admin() {
   const [settings, setSettings] = useState<HallSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Search & sort
   const [searchQuery, setSearchQuery] = useState('');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  // Modal states
   const [showManualModal, setShowManualModal] = useState(false);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [viewScreenshot, setViewScreenshot] = useState<string | null>(null);
   const [penaltyBooking, setPenaltyBooking] = useState<Booking | null>(null);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<Booking | null>(null);
+
+  // Import modal
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authed) return;
@@ -90,10 +102,20 @@ export default function Admin() {
   const upcomingCount = activeBookings.filter(b => new Date(b.date) >= new Date(new Date().toDateString())).length;
 
   async function handleCancel(id: string) {
-    if (confirm('Cancel this booking and process refund?')) {
-      await cancelBooking(id);
+    await cancelBooking(id);
+    toast.success('Booking marked as cancelled');
+    setRefreshKey(k => k + 1);
+  }
+
+  async function handleDelete(id: string) {
+    const ok = await deleteBooking(id);
+    if (ok) {
+      toast.success('Booking permanently deleted');
       setRefreshKey(k => k + 1);
+    } else {
+      toast.error('Failed to delete booking');
     }
+    setDeleteTarget(null);
   }
 
   function handleLogout() { logout(); setAuthed(false); }
@@ -122,12 +144,96 @@ export default function Admin() {
   };
 
   const getRowClass = (b: Booking) => {
-    if (b.status === 'cancelled') return 'opacity-50';
+    if (b.status === 'cancelled') return 'opacity-50 line-through';
     const ts = getBookingTimeStatus(b);
     if (ts === 'past') return 'opacity-40';
     if (ts === 'current') return 'bg-success/5';
     return '';
   };
+
+  // --- Export to Excel ---
+  function handleExport() {
+    const rows = bookings.map(b => ({
+      'Booking ID': b.id,
+      'Name': b.name,
+      'Flat': b.flatNumber,
+      'Phone': b.phone || '',
+      'Event': b.eventType,
+      'Date': b.date,
+      'Hall': HALL_LABELS[b.hall] || b.hall,
+      'Time Slot': slotLabel(b),
+      'User Type': b.userType,
+      'Members': b.memberCount,
+      'Rent': b.rent,
+      'Deposit': b.deposit,
+      'Total': b.total,
+      'Penalty': b.penaltyAmount || 0,
+      'Penalty Reason': b.penaltyReason || '',
+      'Status': b.status,
+      'Type': b.bookingType,
+      'Created': b.createdAt,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Bookings');
+    XLSX.writeFile(wb, `bookings_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success('Bookings exported to Excel');
+  }
+
+  // --- Import from Excel ---
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (rows.length === 0) { toast.error('No data found in file'); return; }
+
+      let imported = 0;
+      for (const row of rows) {
+        const name = row['Name'] || row['name'] || '';
+        const flat = row['Flat'] || row['flat_number'] || row['Flat Number'] || '';
+        const date = row['Date'] || row['date'] || '';
+        const event = row['Event'] || row['event_type'] || row['Event Type'] || 'General';
+        if (!name || !flat || !date) continue;
+
+        // Map hall
+        let hall: HallOption = 'b-wing';
+        const hallStr = String(row['Hall'] || row['hall'] || '').toLowerCase();
+        if (hallStr.includes('both')) hall = 'both';
+        else if (hallStr.includes('c')) hall = 'c-wing';
+
+        const members = parseInt(row['Members'] || row['member_count'] || '10') || 10;
+        const rent = parseInt(row['Rent'] || row['rent'] || '0') || 0;
+        const deposit = parseInt(row['Deposit'] || row['deposit'] || '0') || 0;
+
+        try {
+          await createBooking({
+            flatNumber: String(flat),
+            name: String(name),
+            phone: String(row['Phone'] || row['phone'] || ''),
+            eventType: String(event),
+            date: String(date),
+            timeSlot: 'full',
+            hall,
+            userType: 'resident',
+            memberCount: members,
+            rent,
+            deposit,
+            bookingType: 'manual',
+          });
+          imported++;
+        } catch {}
+      }
+      toast.success(`Imported ${imported} bookings from Excel`);
+      setRefreshKey(k => k + 1);
+    } catch (err) {
+      toast.error('Failed to read Excel file');
+    }
+    e.target.value = '';
+  }
 
   if (loading) return <div className="container mx-auto px-4 py-6 max-w-5xl text-center"><p className="text-muted-foreground">Loading...</p></div>;
 
@@ -172,20 +278,22 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* Search, Sort, Manual Booking */}
+          {/* Search, Sort, Actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by ID, Name, or Flat..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Search by ID, Name, or Flat..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
             </div>
             <Button variant="outline" size="sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
               <ArrowUpDown className="h-4 w-4 mr-1.5" /> Date {sortDir === 'asc' ? '↑' : '↓'}
             </Button>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1.5" /> Export
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()}>
+              <FileUp className="h-4 w-4 mr-1.5" /> Import
+            </Button>
+            <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
             <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
               <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
             </Button>
@@ -250,11 +358,14 @@ export default function Admin() {
                               <Button variant="ghost" size="icon" onClick={() => setPenaltyBooking(b)} title="Penalty">
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Cancel">
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Mark Cancelled">
+                                <Ban className="h-4 w-4 text-amber-500" />
                               </Button>
                             </>
                           )}
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} title="Delete Permanently">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -297,6 +408,24 @@ export default function Admin() {
           onSaved={() => { setPenaltyBooking(null); setRefreshKey(k => k + 1); }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete Booking?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove booking <strong>{deleteTarget?.id}</strong> ({deleteTarget?.name} — Flat {deleteTarget?.flatNumber}) from the database. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && handleDelete(deleteTarget.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -535,7 +664,7 @@ function ManualBookingModal({ existingBooking, settings, onClose, onSaved }: { e
             </div>
           )}
 
-          {/* Optional payment screenshot for manual bookings */}
+          {/* Optional payment screenshot */}
           <div className="space-y-1.5">
             <Label>Payment Screenshot (optional)</Label>
             {screenshotPreview ? (

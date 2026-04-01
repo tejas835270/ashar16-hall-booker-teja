@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -233,7 +233,17 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 <div className="space-y-1.5"><Label htmlFor="name">Full Name *</Label><Input id="name" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} maxLength={50} /></div>
                 <div className="space-y-1.5"><Label htmlFor="phone">Phone Number * <span className="text-xs text-muted-foreground">(10 digits)</span></Label><Input id="phone" placeholder="e.g. 9876543210" value={phone} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setPhone(v); }} type="tel" maxLength={10} />{phone.length > 0 && !(/^\d{10}$/.test(phone)) && <p className="text-xs text-destructive">Phone number must be exactly 10 digits.</p>}</div>
                 <div className="space-y-1.5"><Label htmlFor="event">Event Type *</Label><Input id="event" placeholder="e.g. Birthday Party" value={eventType} onChange={e => setEventType(e.target.value)} maxLength={40} /></div>
-                <div className="space-y-1.5"><Label htmlFor="members">Member Count *</Label><Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} /><p className="text-xs text-muted-foreground">For more than 80 members, booking of 2 halls is mandatory.</p>{needsBothHalls && <p className="text-xs text-destructive font-medium">Please select "Both (B & C Wing)" for more than 80 members.</p>}</div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="members">Member Count *</Label>
+                  <Input id="members" type="number" placeholder="e.g. 25" value={memberCount} onChange={e => setMemberCount(e.target.value)} min={1} max={500} />
+                  <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-2">
+                    <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">Note: For more than 80 members, booking of 2 halls is mandatory.</p>
+                  </div>
+                  {needsBothHalls && (
+                    <p className="text-xs text-destructive font-semibold">⚠ Please select "Both (B &amp; C Wing)" to proceed.</p>
+                  )}
+                </div>
 
                 <div className="space-y-1.5">
                   <Label>User Type</Label>
