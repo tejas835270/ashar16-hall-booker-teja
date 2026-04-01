@@ -317,7 +317,7 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1.5" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => importFileRef.current?.click()}>
+            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
               <FileUp className="h-4 w-4 mr-1.5" /> Import
             </Button>
             <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
