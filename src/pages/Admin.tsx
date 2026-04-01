@@ -25,6 +25,7 @@ import {
 } from '@/lib/bookingStore';
 import { getAuth, isAdmin, logout } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
