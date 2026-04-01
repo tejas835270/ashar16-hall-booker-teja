@@ -30,7 +30,7 @@ import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-type Tab = 'bookings' | 'settings';
+type Tab = 'bookings' | 'analytics' | 'settings';
 type SortDir = 'asc' | 'desc';
 
 function getBookingTimeStatus(b: Booking): 'past' | 'current' | 'upcoming' {
