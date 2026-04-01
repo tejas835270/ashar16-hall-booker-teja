@@ -339,6 +339,11 @@ export async function cancelBooking(id: string): Promise<boolean> {
   return !error;
 }
 
+export async function deleteBooking(id: string): Promise<boolean> {
+  const { error } = await supabase.from('bookings').delete().eq('id', id);
+  return !error;
+}
+
 export async function findBooking(id: string): Promise<Booking | undefined> {
   const { data, error } = await supabase.from('bookings').select('*').eq('id', id).single();
   if (error || !data) return undefined;
