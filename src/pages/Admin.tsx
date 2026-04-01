@@ -270,6 +270,9 @@ export default function Admin() {
             <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
+            <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
+            </button>
             <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <Settings className="h-4 w-4 inline mr-1.5" />Settings
             </button>
