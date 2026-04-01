@@ -181,6 +181,28 @@ export default function Admin() {
     toast.success('Bookings exported to Excel');
   }
 
+  // --- Generate sample Excel for import ---
+  function handleDownloadSample() {
+    const sampleRows = [
+      {
+        'Name': 'John Doe',
+        'Flat': 'A-101',
+        'Date': '2026-04-15',
+        'Event': 'Birthday',
+        'Phone': '9876543210',
+        'Hall': 'B-Wing Hall',
+        'Members': 50,
+        'Rent': 4000,
+        'Deposit': 2000,
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sample');
+    XLSX.writeFile(wb, 'bookings_import_sample.xlsx');
+    toast.success('Sample file downloaded');
+  }
+
   // --- Import from Excel ---
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -193,14 +215,14 @@ export default function Admin() {
       if (rows.length === 0) { toast.error('No data found in file'); return; }
 
       let imported = 0;
+      let skipped = 0;
       for (const row of rows) {
         const name = row['Name'] || row['name'] || '';
         const flat = row['Flat'] || row['flat_number'] || row['Flat Number'] || '';
         const date = row['Date'] || row['date'] || '';
         const event = row['Event'] || row['event_type'] || row['Event Type'] || 'General';
-        if (!name || !flat || !date) continue;
+        if (!name || !flat || !date) { skipped++; continue; }
 
-        // Map hall
         let hall: HallOption = 'b-wing';
         const hallStr = String(row['Hall'] || row['hall'] || '').toLowerCase();
         if (hallStr.includes('both')) hall = 'both';
@@ -228,7 +250,8 @@ export default function Admin() {
           imported++;
         } catch {}
       }
-      toast.success(`Imported ${imported} bookings from Excel`);
+      toast.success(`Imported ${imported} bookings${skipped ? `, ${skipped} skipped (missing required fields)` : ''}`);
+      setShowImportModal(false);
       setRefreshKey(k => k + 1);
     } catch (err) {
       toast.error('Failed to read Excel file');
