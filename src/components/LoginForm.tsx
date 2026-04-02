@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { login, type Role } from '@/lib/authStore';
+import { loginAsync, type Role } from '@/lib/authStore';
 import { toast } from 'sonner';
 
 interface Props {
@@ -14,10 +14,13 @@ interface Props {
 export default function LoginForm({ expectedRole, onSuccess }: Props) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const role = login(username, password);
+    setLoading(true);
+    const role = await loginAsync(username, password);
+    setLoading(false);
     if (role === expectedRole) {
       onSuccess(role);
       toast.success(`Logged in as ${expectedRole}`);
@@ -70,8 +73,8 @@ export default function LoginForm({ expectedRole, onSuccess }: Props) {
               />
             </div>
           </div>
-          <Button type="submit" className="w-full" disabled={!username || !password}>
-            Sign In
+          <Button type="submit" className="w-full" disabled={!username || !password || loading}>
+            {loading ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Signing in...</> : 'Sign In'}
           </Button>
         </form>
       </div>

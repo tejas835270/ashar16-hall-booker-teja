@@ -89,6 +89,57 @@ export type Database = {
         }
         Relationships: []
       }
+      credentials: {
+        Row: {
+          id: number
+          password: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          id?: number
+          password: string
+          role: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          id?: number
+          password?: string
+          role?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      password_change_logs: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          id: string
+          reason: string
+          target_role: string
+          target_username: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          id?: string
+          reason: string
+          target_role: string
+          target_username: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          id?: string
+          reason?: string
+          target_role?: string
+          target_username?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           cheque_payee_name: string | null
