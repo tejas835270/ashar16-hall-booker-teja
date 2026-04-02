@@ -267,23 +267,23 @@ export default function Index() {
                 onClick={() => handleDayClick(day)}
                 className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 ${
                   status === 'past' ? 'text-muted-foreground/25 cursor-default' :
-                  status === 'booked' ? 'bg-destructive/8 text-destructive/50 cursor-not-allowed' :
-                  status === 'partial' ? 'bg-warning/8 text-foreground hover:bg-warning/15 hover:shadow-sm cursor-pointer border border-warning/15' :
-                  'bg-success/8 text-foreground hover:bg-success/15 hover:shadow-sm cursor-pointer border border-success/15'
+                  status === 'booked' ? 'bg-[hsl(0,65%,40%)] text-white cursor-not-allowed' :
+                  status === 'partial' ? 'bg-[hsl(38,80%,45%)] text-white hover:bg-[hsl(38,80%,40%)] hover:shadow-sm cursor-pointer' :
+                  'bg-[hsl(142,60%,35%)] text-white hover:bg-[hsl(142,60%,30%)] hover:shadow-sm cursor-pointer'
                 } ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-2 ring-offset-background scale-105' : ''}`}
               >
                 <span>{day}</span>
-                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 text-success opacity-60" />}
-                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 text-warning opacity-60" />}
+                {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 opacity-80" />}
+                {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 opacity-80" />}
               </button>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap gap-5 mt-5 text-xs text-muted-foreground justify-center">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success/40 border border-success/30" /> Available</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning/40 border border-warning/30" /> Partial</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive/40 border border-destructive/30" /> Booked</span>
+        <div className="flex flex-wrap gap-5 mt-5 text-xs text-muted-foreground justify-center font-medium">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(142,60%,35%)]" /> Available</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(38,80%,45%)]" /> Partial</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(0,65%,40%)]" /> Booked</span>
         </div>
       </div>
 

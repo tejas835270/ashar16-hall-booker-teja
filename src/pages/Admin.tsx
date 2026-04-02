@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload, Download, FileUp, BarChart3, FileDown, Info } from 'lucide-react';
+import { Trash2, IndianRupee, CalendarDays, Ban, Settings, LogOut, Plus, Pencil, Camera, AlertTriangle, Search, ArrowUpDown, Eye, Monitor, Globe, X, Upload, Download, FileUp, BarChart3, FileDown, Info, KeyRound, ClipboardList, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,14 +23,14 @@ import {
   fetchSettings, uploadFile, deleteBooking,
   type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
-import { getAuth, isAdmin, logout } from '@/lib/authStore';
+import { getAuth, isAdmin, logout, changePassword, fetchPasswordChangeLogs, type PasswordChangeLog } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
 import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import LoginForm from '@/components/LoginForm';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-type Tab = 'bookings' | 'analytics' | 'settings';
+type Tab = 'bookings' | 'analytics' | 'settings' | 'security';
 type SortDir = 'asc' | 'desc';
 
 function getBookingTimeStatus(b: Booking): 'past' | 'current' | 'upcoming' {
@@ -41,6 +41,9 @@ function getBookingTimeStatus(b: Booking): 'past' | 'current' | 'upcoming' {
   if (bDate.getTime() === today.getTime()) return 'current';
   return 'upcoming';
 }
+
+// --- MANDATORY IMPORT FIELDS ---
+const MANDATORY_IMPORT_FIELDS = ['Name', 'Flat', 'Date', 'Event', 'Phone', 'Hall', 'Members', 'Rent', 'Deposit'];
 
 export default function Admin() {
   const [authed, setAuthed] = useState(isAdmin());
@@ -64,6 +67,7 @@ export default function Admin() {
 
   // Import modal
   const [showImportModal, setShowImportModal] = useState(false);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
 
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -195,18 +199,35 @@ export default function Admin() {
         'Rent': 4000,
         'Deposit': 2000,
       },
+      {
+        'Name': 'Jane Smith',
+        'Flat': 'B-205',
+        'Date': '2026-04-20',
+        'Event': 'Anniversary',
+        'Phone': '9123456789',
+        'Hall': 'C-Wing Hall',
+        'Members': 30,
+        'Rent': 5000,
+        'Deposit': 2000,
+      },
     ];
     const ws = XLSX.utils.json_to_sheet(sampleRows);
+
+    // Add a note row
+    const noteRow = MANDATORY_IMPORT_FIELDS.length + 2;
+    XLSX.utils.sheet_add_aoa(ws, [['⚠️ ALL fields above are MANDATORY. Do not rename columns. Save file as bookings_import_sample.xlsx']], { origin: `A${sampleRows.length + 3}` });
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Sample');
     XLSX.writeFile(wb, 'bookings_import_sample.xlsx');
     toast.success('Sample file downloaded');
   }
 
-  // --- Import from Excel ---
+  // --- Import from Excel (strict validation) ---
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImportErrors([]);
     try {
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data);
@@ -214,14 +235,51 @@ export default function Admin() {
       const rows: any[] = XLSX.utils.sheet_to_json(ws);
       if (rows.length === 0) { toast.error('No data found in file'); return; }
 
+      // Check mandatory columns
+      const headers = Object.keys(rows[0]);
+      const missingCols = MANDATORY_IMPORT_FIELDS.filter(f => {
+        return !headers.some(h => h.toLowerCase() === f.toLowerCase());
+      });
+
+      if (missingCols.length > 0) {
+        const errors = [`Missing mandatory columns: ${missingCols.join(', ')}`];
+        errors.push('Please download the sample file and use the exact column names.');
+        setImportErrors(errors);
+        toast.error(`Missing columns: ${missingCols.join(', ')}`);
+        return;
+      }
+
+      // Check every row for empty mandatory values
+      const rowErrors: string[] = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const emptyFields: string[] = [];
+        for (const field of MANDATORY_IMPORT_FIELDS) {
+          const key = headers.find(h => h.toLowerCase() === field.toLowerCase()) || field;
+          const val = row[key];
+          if (val === undefined || val === null || String(val).trim() === '') {
+            emptyFields.push(field);
+          }
+        }
+        if (emptyFields.length > 0) {
+          rowErrors.push(`Row ${i + 2}: Missing ${emptyFields.join(', ')}`);
+        }
+      }
+
+      if (rowErrors.length > 0) {
+        setImportErrors(rowErrors);
+        toast.error(`${rowErrors.length} row(s) have missing data`);
+        return;
+      }
+
+      // All valid - import
       let imported = 0;
-      let skipped = 0;
       for (const row of rows) {
-        const name = row['Name'] || row['name'] || '';
-        const flat = row['Flat'] || row['flat_number'] || row['Flat Number'] || '';
-        const date = row['Date'] || row['date'] || '';
-        const event = row['Event'] || row['event_type'] || row['Event Type'] || 'General';
-        if (!name || !flat || !date) { skipped++; continue; }
+        const name = String(row['Name'] || row['name'] || '');
+        const flat = String(row['Flat'] || row['flat_number'] || '');
+        const date = String(row['Date'] || row['date'] || '');
+        const event = String(row['Event'] || row['event_type'] || 'General');
+        const phone = String(row['Phone'] || row['phone'] || '');
 
         let hall: HallOption = 'b-wing';
         const hallStr = String(row['Hall'] || row['hall'] || '').toLowerCase();
@@ -234,11 +292,11 @@ export default function Admin() {
 
         try {
           await createBooking({
-            flatNumber: String(flat),
-            name: String(name),
-            phone: String(row['Phone'] || row['phone'] || ''),
-            eventType: String(event),
-            date: String(date),
+            flatNumber: flat,
+            name,
+            phone,
+            eventType: event,
+            date,
             timeSlot: 'full',
             hall,
             userType: 'resident',
@@ -250,8 +308,9 @@ export default function Admin() {
           imported++;
         } catch {}
       }
-      toast.success(`Imported ${imported} bookings${skipped ? `, ${skipped} skipped (missing required fields)` : ''}`);
+      toast.success(`Successfully imported ${imported} bookings`);
       setShowImportModal(false);
+      setImportErrors([]);
       setRefreshKey(k => k + 1);
     } catch (err) {
       toast.error('Failed to read Excel file');
@@ -266,12 +325,15 @@ export default function Admin() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-accent rounded-lg p-1">
+          <div className="flex gap-1 bg-accent rounded-lg p-1 flex-wrap">
             <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
             <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
+            </button>
+            <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              <KeyRound className="h-4 w-4 inline mr-1.5" />Security
             </button>
             <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <Settings className="h-4 w-4 inline mr-1.5" />Settings
@@ -284,6 +346,8 @@ export default function Admin() {
       {tab === 'settings' && settings && <AdminSettings initialSettings={settings} onSaved={() => setRefreshKey(k => k + 1)} />}
 
       {tab === 'analytics' && <AnalyticsDashboard bookings={bookings} />}
+
+      {tab === 'security' && <SecurityTab />}
 
       {tab === 'bookings' && (
         <>
@@ -319,7 +383,7 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1.5" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)}>
+            <Button variant="outline" size="sm" onClick={() => { setShowImportModal(true); setImportErrors([]); }}>
               <FileUp className="h-4 w-4 mr-1.5" /> Import
             </Button>
             <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
@@ -457,7 +521,7 @@ export default function Admin() {
       </AlertDialog>
 
       {/* Import Guidance Modal */}
-      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+      <Dialog open={showImportModal} onOpenChange={v => { setShowImportModal(v); if (!v) setImportErrors([]); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -466,39 +530,37 @@ export default function Admin() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-accent/50 border border-border/50 rounded-xl p-4 space-y-3">
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-xl p-4 space-y-3">
               <div className="flex items-start gap-2">
-                <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-semibold text-foreground mb-1.5">Mandatory Fields</p>
-                  <p className="text-xs text-muted-foreground mb-2">Your Excel file <strong>must</strong> contain these columns:</p>
+                  <p className="text-sm font-semibold text-foreground mb-1.5">⚠️ ALL Fields Are Mandatory</p>
+                  <p className="text-xs text-muted-foreground mb-2">Your Excel file <strong>must</strong> contain <strong>all</strong> these columns with data in every row:</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-1.5 pl-6">
-                {[
-                  { field: 'Name', desc: 'Full name of the person booking' },
-                  { field: 'Flat', desc: 'Flat number (e.g. A-101)' },
-                  { field: 'Date', desc: 'Booking date (YYYY-MM-DD format)' },
-                ].map(f => (
-                  <div key={f.field} className="flex items-center gap-2 text-xs">
-                    <span className="font-mono font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">{f.field}</span>
-                    <span className="text-muted-foreground">— {f.desc}</span>
+                {MANDATORY_IMPORT_FIELDS.map(f => (
+                  <div key={f} className="flex items-center gap-2 text-xs">
+                    <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">{f}</span>
+                    <span className="text-destructive font-medium">*</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-accent/30 border border-border/50 rounded-xl p-4 space-y-2">
-              <p className="text-sm font-medium text-foreground">Optional Fields</p>
-              <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-                {['Event', 'Phone', 'Hall', 'Members', 'Rent', 'Deposit'].map(f => (
-                  <span key={f} className="font-mono bg-muted/50 px-1.5 py-0.5 rounded">{f}</span>
+            {importErrors.length > 0 && (
+              <div className="bg-destructive/5 border border-destructive/30 rounded-xl p-4 space-y-2 max-h-48 overflow-y-auto">
+                <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
+                  <X className="h-4 w-4" /> Validation Errors
+                </p>
+                {importErrors.map((err, i) => (
+                  <p key={i} className="text-xs text-destructive/80 font-mono">{err}</p>
                 ))}
               </div>
-            </div>
+            )}
 
             <p className="text-xs text-muted-foreground">
-              Rows missing <strong>Name</strong>, <strong>Flat</strong>, or <strong>Date</strong> will be skipped automatically.
+              Download the sample file below, fill in your data using the <strong>exact same column names</strong>, and upload it back.
             </p>
 
             <div className="flex gap-3">
@@ -512,6 +574,158 @@ export default function Admin() {
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// --- Security Tab: Password Management & Audit Logs ---
+function SecurityTab() {
+  const [targetRole, setTargetRole] = useState<'admin' | 'guard'>('guard');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [logs, setLogs] = useState<PasswordChangeLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+
+  useEffect(() => {
+    fetchPasswordChangeLogs().then(l => { setLogs(l); setLoadingLogs(false); });
+  }, []);
+
+  async function handleChangePassword() {
+    if (!newPassword || newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (!reason.trim()) {
+      toast.error('Reason for password change is mandatory');
+      return;
+    }
+    setShowConfirm(true);
+  }
+
+  async function confirmChange() {
+    setSaving(true);
+    setShowConfirm(false);
+    const ok = await changePassword(targetRole, newPassword, reason.trim());
+    if (ok) {
+      toast.success(`${targetRole === 'admin' ? 'Admin' : 'Guard'} password changed successfully`);
+      setNewPassword('');
+      setConfirmPassword('');
+      setReason('');
+      const updatedLogs = await fetchPasswordChangeLogs();
+      setLogs(updatedLogs);
+    } else {
+      toast.error('Failed to change password');
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Password Change Form */}
+      <div className="bg-card rounded-xl shadow-card border border-border/50 p-6">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary" />
+          Change Password
+        </h2>
+        <div className="space-y-4 max-w-md">
+          <div className="space-y-1.5">
+            <Label>Change Password For</Label>
+            <Select value={targetRole} onValueChange={v => setTargetRole(v as 'admin' | 'guard')}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="guard">Guard</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>New Password *</Label>
+            <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Minimum 6 characters" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirm Password *</Label>
+            <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter new password" />
+            {confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Reason for Change * <span className="text-destructive">(mandatory)</span></Label>
+            <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. Periodic security rotation, Guard request, etc." rows={2} />
+          </div>
+          <Button
+            onClick={handleChangePassword}
+            disabled={!newPassword || !confirmPassword || !reason.trim() || newPassword !== confirmPassword || saving}
+          >
+            {saving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Saving...</> : 'Change Password'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Password Change Confirmation */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Password Change</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to change the <strong>{targetRole}</strong> password.<br />
+              <strong>Reason:</strong> {reason}<br /><br />
+              Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmChange}>Confirm Change</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Audit Logs */}
+      <div className="bg-card rounded-xl shadow-card border border-border/50 p-6">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-primary" />
+          Password Change Logs
+        </h2>
+        {loadingLogs ? (
+          <p className="text-muted-foreground text-sm">Loading logs...</p>
+        ) : logs.length === 0 ? (
+          <p className="text-muted-foreground text-sm">No password changes recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-accent/50">
+                  <th className="text-left p-3 font-medium text-muted-foreground">Date & Time</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Changed By</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Target</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Username</th>
+                  <th className="text-left p-3 font-medium text-muted-foreground">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map(log => (
+                  <tr key={log.id} className="border-b last:border-0 hover:bg-accent/30">
+                    <td className="p-3 text-xs font-mono">{new Date(log.changedAt).toLocaleString('en-IN')}</td>
+                    <td className="p-3 font-medium">{log.changedBy}</td>
+                    <td className="p-3">
+                      <Badge variant="outline" className="text-xs capitalize">{log.targetRole}</Badge>
+                    </td>
+                    <td className="p-3">{log.targetUsername}</td>
+                    <td className="p-3 text-muted-foreground max-w-xs truncate">{log.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
