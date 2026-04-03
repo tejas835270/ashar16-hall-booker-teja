@@ -281,10 +281,11 @@ export default function Index() {
         </div>
 
         <div className="flex flex-wrap gap-5 mt-5 text-xs text-muted-foreground justify-center font-medium">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(142,60%,35%)]" /> Available</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(38,80%,45%)]" /> Partial</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(0,65%,40%)]" /> Booked</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(142,55%,42%)]" /> Available</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(30,95%,50%)]" /> Partial</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(0,72%,50%)]" /> Booked</span>
         </div>
+        <p className="text-center text-xs text-muted-foreground mt-2">Note: For orange dates, tap to see available time slots.</p>
       </div>
 
       {previewDate && (

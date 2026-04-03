@@ -428,7 +428,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1 rounded-lg" onClick={() => setStep('form')}>Back</Button>
                   <Button className="flex-1 rounded-lg" onClick={handlePay} disabled={paying || !screenshotFile}>
-                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm & Pay ₹${rent.toLocaleString('en-IN')}`}
+                    {paying ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Processing...</> : `Confirm ₹${rent.toLocaleString('en-IN')}`}
                   </Button>
                 </div>
               </div>
