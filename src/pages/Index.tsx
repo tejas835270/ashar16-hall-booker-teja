@@ -266,10 +266,10 @@ export default function Index() {
                 disabled={status === 'past' || status === 'booked'}
                 onClick={() => handleDayClick(day)}
                 className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  status === 'past' ? 'text-muted-foreground/25 cursor-default' :
-                  status === 'booked' ? 'bg-[hsl(0,65%,40%)] text-white cursor-not-allowed' :
-                  status === 'partial' ? 'bg-[hsl(38,80%,45%)] text-white hover:bg-[hsl(38,80%,40%)] hover:shadow-sm cursor-pointer' :
-                  'bg-[hsl(142,60%,35%)] text-white hover:bg-[hsl(142,60%,30%)] hover:shadow-sm cursor-pointer'
+                  status === 'past' ? 'opacity-40 grayscale cursor-default bg-muted text-muted-foreground' :
+                  status === 'booked' ? 'bg-[hsl(0,72%,50%)] text-white cursor-not-allowed' :
+                  status === 'partial' ? 'bg-[hsl(30,95%,50%)] text-white hover:bg-[hsl(30,95%,45%)] hover:shadow-sm cursor-pointer' :
+                  'bg-[hsl(142,55%,42%)] text-white hover:bg-[hsl(142,55%,37%)] hover:shadow-sm cursor-pointer'
                 } ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''} ${isPreview ? 'ring-2 ring-warning ring-offset-2 ring-offset-background scale-105' : ''}`}
               >
                 <span>{day}</span>
@@ -281,10 +281,11 @@ export default function Index() {
         </div>
 
         <div className="flex flex-wrap gap-5 mt-5 text-xs text-muted-foreground justify-center font-medium">
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(142,60%,35%)]" /> Available</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(38,80%,45%)]" /> Partial</span>
-          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(0,65%,40%)]" /> Booked</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(142,55%,42%)]" /> Available</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(30,95%,50%)]" /> Partial</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[hsl(0,72%,50%)]" /> Booked</span>
         </div>
+        <p className="text-center text-xs text-muted-foreground mt-2">Note: For orange dates, tap to see available time slots.</p>
       </div>
 
       {previewDate && (
