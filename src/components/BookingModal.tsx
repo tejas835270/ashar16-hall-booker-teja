@@ -397,11 +397,11 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       <img src={settings.paymentQrUrl} alt="Payment QR" className="mx-auto max-w-[200px] rounded-lg" />
                     ) : settings.upiId ? (
                       <div className="bg-white p-3 rounded-lg inline-block">
-                        <QRCode value={`upi://pay?pa=${settings.upiId}&am=${rent + deposit}&cu=INR`} size={180} />
+                        <QRCode value={`upi://pay?pa=${settings.upiId}&am=${rent}&cu=INR`} size={180} />
                       </div>
                     ) : (
                       <div className="bg-white p-3 rounded-lg inline-block">
-                        <QRCode value={`upi://pay?am=${rent + deposit}&cu=INR`} size={180} />
+                        <QRCode value={`upi://pay?am=${rent}&cu=INR`} size={180} />
                       </div>
                     )}
                     {settings.upiId && <p className="text-xs text-muted-foreground">UPI: {settings.upiId}</p>}
