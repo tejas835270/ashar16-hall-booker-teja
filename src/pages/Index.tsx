@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import {
   fetchActiveBookings, fetchSettings, saveSettings, formatHour, getSlotTimes,
@@ -105,6 +107,7 @@ export default function Index() {
   const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
   const [settings, setSettings] = useState<HallSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Inline editing for society name
   const [editingName, setEditingName] = useState(false);
@@ -150,20 +153,21 @@ export default function Index() {
   function getStatus(day: number) {
     const ds = dateStr(day);
     const past = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    if (past) return 'past';
+    if (past && !showHistory) return 'past';
     const dayBookings = activeBookings.filter(b => b.date === ds);
+    if (past && dayBookings.length === 0) return 'past';
     const fullBoth = dayBookings.some(b => b.timeSlot === 'full' && b.hall === 'both');
-    if (fullBoth) return 'booked';
+    if (fullBoth) return past ? 'past-booked' : 'booked';
     const fullB = dayBookings.some(b => b.timeSlot === 'full' && (b.hall === 'b-wing' || b.hall === 'both'));
     const fullC = dayBookings.some(b => b.timeSlot === 'full' && (b.hall === 'c-wing' || b.hall === 'both'));
-    if (fullB && fullC) return 'booked';
-    if (dayBookings.length > 0) return 'partial';
-    return 'available';
+    if (fullB && fullC) return past ? 'past-booked' : 'booked';
+    if (dayBookings.length > 0) return past ? 'past-partial' : 'partial';
+    return past ? 'past' : 'available';
   }
 
   function handleDayClick(day: number) {
     const status = getStatus(day);
-    if (status === 'past' || status === 'booked') return;
+    if (status === 'past' || status === 'past-booked' || status === 'past-partial' || status === 'booked') return;
     const ds = dateStr(day);
     if (status === 'partial') {
       setPreviewDate(prev => prev === ds ? null : ds);
@@ -237,6 +241,13 @@ export default function Index() {
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Switch id="show-history" checked={showHistory} onCheckedChange={setShowHistory} />
+            <Label htmlFor="show-history" className="text-xs text-muted-foreground cursor-pointer">Show Past Bookings</Label>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between mb-5">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-lg hover:bg-accent transition-all">
             <ChevronLeft className="h-5 w-5" />
@@ -258,15 +269,18 @@ export default function Index() {
           {Array.from({ length: daysInMonth }, (_, i) => {
             const day = i + 1;
             const status = getStatus(day);
+            const isPast = status === 'past' || status === 'past-booked' || status === 'past-partial';
             const isToday = dateStr(day) === todayStr;
             const isPreview = previewDate === dateStr(day);
             return (
               <button
                 key={day}
-                disabled={status === 'past' || status === 'booked'}
+                disabled={isPast || status === 'booked'}
                 onClick={() => handleDayClick(day)}
                 className={`relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-semibold transition-all duration-200 ${
                   status === 'past' ? 'opacity-40 grayscale cursor-default bg-muted text-muted-foreground' :
+                  status === 'past-booked' ? 'opacity-50 cursor-default bg-[hsl(0,72%,50%)] text-white grayscale-[50%]' :
+                  status === 'past-partial' ? 'opacity-50 cursor-default bg-[hsl(30,95%,50%)] text-white grayscale-[50%]' :
                   status === 'booked' ? 'bg-[hsl(0,72%,50%)] text-white cursor-not-allowed' :
                   status === 'partial' ? 'bg-[hsl(30,95%,50%)] text-white hover:bg-[hsl(30,95%,45%)] hover:shadow-sm cursor-pointer' :
                   'bg-[hsl(142,55%,42%)] text-white hover:bg-[hsl(142,55%,37%)] hover:shadow-sm cursor-pointer'
@@ -275,6 +289,7 @@ export default function Index() {
                 <span>{day}</span>
                 {status === 'available' && <CheckCircle2 className="h-3 w-3 mt-0.5 opacity-80" />}
                 {status === 'partial' && <Clock className="h-3 w-3 mt-0.5 opacity-80" />}
+                {status === 'past-partial' && <Clock className="h-3 w-3 mt-0.5 opacity-60" />}
               </button>
             );
           })}
