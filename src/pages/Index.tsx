@@ -167,7 +167,7 @@ export default function Index() {
 
   function handleDayClick(day: number) {
     const status = getStatus(day);
-    if (status === 'past' || status === 'booked') return;
+    if (status === 'past' || status === 'past-booked' || status === 'past-partial' || status === 'booked') return;
     const ds = dateStr(day);
     if (status === 'partial') {
       setPreviewDate(prev => prev === ds ? null : ds);
