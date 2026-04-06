@@ -153,15 +153,16 @@ export default function Index() {
   function getStatus(day: number) {
     const ds = dateStr(day);
     const past = new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    if (past) return 'past';
+    if (past && !showHistory) return 'past';
     const dayBookings = activeBookings.filter(b => b.date === ds);
+    if (past && dayBookings.length === 0) return 'past';
     const fullBoth = dayBookings.some(b => b.timeSlot === 'full' && b.hall === 'both');
-    if (fullBoth) return 'booked';
+    if (fullBoth) return past ? 'past-booked' : 'booked';
     const fullB = dayBookings.some(b => b.timeSlot === 'full' && (b.hall === 'b-wing' || b.hall === 'both'));
     const fullC = dayBookings.some(b => b.timeSlot === 'full' && (b.hall === 'c-wing' || b.hall === 'both'));
-    if (fullB && fullC) return 'booked';
-    if (dayBookings.length > 0) return 'partial';
-    return 'available';
+    if (fullB && fullC) return past ? 'past-booked' : 'booked';
+    if (dayBookings.length > 0) return past ? 'past-partial' : 'partial';
+    return past ? 'past' : 'available';
   }
 
   function handleDayClick(day: number) {
