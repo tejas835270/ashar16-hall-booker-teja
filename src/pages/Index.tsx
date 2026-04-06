@@ -106,7 +106,7 @@ export default function Index() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeBookings, setActiveBookings] = useState<Booking[]>([]);
   const [settings, setSettings] = useState<HallSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Inline editing for society name
   const [editingName, setEditingName] = useState(false);
