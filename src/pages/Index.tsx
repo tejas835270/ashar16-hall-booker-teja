@@ -241,12 +241,14 @@ export default function Index() {
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Switch id="show-history" checked={showHistory} onCheckedChange={setShowHistory} />
-            <Label htmlFor="show-history" className="text-xs text-muted-foreground cursor-pointer">Show Past Bookings</Label>
+        {admin && (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Switch id="show-history" checked={showHistory} onCheckedChange={setShowHistory} />
+              <Label htmlFor="show-history" className="text-xs text-muted-foreground cursor-pointer">Show Past Bookings</Label>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex items-center justify-between mb-5">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-lg hover:bg-accent transition-all">
