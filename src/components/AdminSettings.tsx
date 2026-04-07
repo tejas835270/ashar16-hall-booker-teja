@@ -284,7 +284,37 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
         </div>
       </div>
 
-      {/* Hall Timings */}
+      {/* Contact & WhatsApp Settings */}
+      <div className={sectionClass}>
+        <h3 className="font-semibold text-base mb-4">Contact & WhatsApp</h3>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Management WhatsApp Number</Label>
+            <p className="text-xs text-muted-foreground">Booking receipts will be shared to this number via WhatsApp</p>
+            <Input
+              placeholder="e.g. 919876543210 (with country code)"
+              value={settings.managementWhatsapp || ''}
+              onChange={e => setSettings({ ...settings, managementWhatsapp: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Support Contact Name</Label>
+            <Input
+              placeholder="e.g. Mr. Sharma"
+              value={settings.supportContactName || ''}
+              onChange={e => setSettings({ ...settings, supportContactName: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Support Contact Number</Label>
+            <Input
+              placeholder="e.g. 9876543210"
+              value={settings.supportContactNumber || ''}
+              onChange={e => setSettings({ ...settings, supportContactNumber: e.target.value })}
+            />
+          </div>
+        </div>
+      </div>
       <div className={sectionClass}>
         <h3 className="font-semibold text-base mb-4">Hall Timings</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

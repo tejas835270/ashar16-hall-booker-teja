@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,32 @@ interface Props {
   date: string;
   onClose: () => void;
   onBooked: () => void;
+}
+
+function buildManagementMessage(booking: Booking, settings: HallSettings): string {
+  const societyName = settings.societyName || 'Ashar 16 CHSL';
+  const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const slotTimes = getSlotTimes(settings);
+  const slotLabel = booking.timeSlot === 'custom'
+    ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
+    : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
+
+  const typeLabel = booking.timeSlot === 'full' ? 'Full Day' : 'Half Day';
+
+  return [
+    `Hello Management, I have booked a hall at ${societyName}.`,
+    ``,
+    `Details:`,
+    `Name: ${booking.name}`,
+    `Date: ${formattedDate}`,
+    `Hall: ${HALL_LABELS[booking.hall]}`,
+    `Type: ${typeLabel}`,
+    `Total: ₹${booking.rent.toLocaleString('en-IN')}`,
+    ``,
+    `Receipt attached. Please confirm.`,
+  ].join('\n');
 }
 
 function buildGuardMessage(booking: Booking, settings: HallSettings): string {
@@ -169,6 +196,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
       });
       setBooking(b);
       setStep('confirmation');
+      // Fire confetti
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5 } }), 300);
     } catch (err) {
       toast.error('Failed to create booking');
     } finally {
@@ -176,7 +206,14 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     }
   }
 
-  function handleShareWhatsApp() {
+  function handleShareWhatsAppManagement() {
+    if (!booking || !settings) return;
+    const msg = buildManagementMessage(booking, settings);
+    const phone = settings.managementWhatsapp || '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  function handleShareWhatsAppGuard() {
     if (!booking || !settings) return;
     const msg = buildGuardMessage(booking, settings);
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
@@ -442,8 +479,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </div>
                 </div>
                 <div>
-                  <p className="font-bold text-xl text-foreground">Booking Confirmed! 🎉</p>
-                  <p className="text-muted-foreground text-sm mt-1">Your booking ID: <span className="font-mono font-bold text-primary text-base">{booking.id}</span></p>
+                  <p className="font-bold text-xl text-foreground">Success! 🎉</p>
+                  <p className="text-muted-foreground text-sm mt-1">Your booking is recorded. Please download your receipt and send it to Management.</p>
+                  <p className="text-muted-foreground text-xs mt-1">Booking ID: <span className="font-mono font-bold text-primary text-base">{booking.id}</span></p>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-left">
@@ -453,6 +491,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <div className="bg-accent/60 rounded-lg p-4 inline-block mx-auto border border-border/30">
                   <QRCode value={verificationUrl || booking.id} size={160} />
+                  <p className="text-xs text-muted-foreground mt-2">Scan for payment verification</p>
                 </div>
 
                 <div className="bg-accent/60 rounded-lg p-3 text-sm text-left space-y-1 border border-border/30">
@@ -464,7 +503,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p><span className="text-muted-foreground">Event:</span> {booking.eventType}</p>
                   <p><span className="text-muted-foreground">Attendees:</span> {booking.memberCount}</p>
                   <p><span className="text-muted-foreground">Amount Paid:</span> ₹{booking.total.toLocaleString('en-IN')}</p>
-                  {/* Show custom field values */}
                   {booking.customData && settings.customFields.map(f => {
                     const val = booking.customData?.[f.id];
                     if (!val) return null;
@@ -482,7 +520,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                     <Send className="h-4 w-4 mr-1.5" /> Copy
                   </Button>
                 </div>
-                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsApp}>
+                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppManagement}>
+                  <Send className="h-4 w-4 mr-1.5" /> Send Receipt to Management
+                </Button>
+                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppGuard}>
                   <Send className="h-4 w-4 mr-1.5" /> Share with Guard via WhatsApp
                 </Button>
                 <Button className="w-full rounded-lg" onClick={onBooked}>Done</Button>

@@ -1,7 +1,30 @@
 import jsPDF from 'jspdf';
+import QRCode from 'react-qr-code';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
 import { type Booking, type HallSettings, HALL_LABELS, getSlotTimes, formatHour, getCachedSettings } from './bookingStore';
 
-export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
+function svgToDataUrl(svgMarkup: string): Promise<string> {
+  return new Promise((resolve) => {
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.drawImage(img, 0, 0, 200, 200);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = url;
+  });
+}
+
+export async function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   const settings = getCachedSettings();
   const societyName = settings.societyName || 'Ashar 16 CHSL';
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -115,23 +138,33 @@ export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   y += 20;
 
   if (verificationUrl) {
+    // Render QR code as image
+    const svgMarkup = renderToStaticMarkup(createElement(QRCode, { value: verificationUrl, size: 200 }));
+    const qrDataUrl = await svgToDataUrl(svgMarkup);
+
     doc.setFillColor(245, 247, 250);
-    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'F');
+    doc.roundedRect(margin, y, w - margin * 2, 60, 3, 3, 'F');
     doc.setDrawColor(200, 210, 225);
-    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'S');
+    doc.roundedRect(margin, y, w - margin * 2, 60, 3, 3, 'S');
     y += 8;
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 55, 90);
     doc.setFontSize(10);
     doc.text('Verification QR Code', margin + 5, y);
+
+    // Embed QR image
+    doc.addImage(qrDataUrl, 'PNG', w - margin - 45, y - 4, 40, 40);
+
     y += 6;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(8);
-    doc.text(`Scan QR or visit: ${verificationUrl}`, margin + 5, y);
-    y += 6;
+    doc.text(`Scan for payment verification`, margin + 5, y);
+    y += 5;
     doc.text(`Booking ID: ${booking.id}`, margin + 5, y);
-    y += 14;
+    y += 5;
+    doc.text(`URL: ${verificationUrl}`, margin + 5, y);
+    y += 40;
   }
 
   doc.setFontSize(9);

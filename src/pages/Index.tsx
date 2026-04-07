@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   fetchActiveBookings, fetchSettings, saveSettings, formatHour, getSlotTimes,
   HALL_LABELS, type Booking, type HallSettings
@@ -108,6 +109,7 @@ export default function Index() {
   const [settings, setSettings] = useState<HallSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Inline editing for society name
   const [editingName, setEditingName] = useState(false);
@@ -238,6 +240,11 @@ export default function Index() {
         <p className="text-muted-foreground text-sm mt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
           Select an available date to book the community hall
         </p>
+        {(settings.supportContactName || settings.supportContactNumber) && (
+          <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowHelp(true)}>
+            <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+          </Button>
+        )}
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
@@ -322,6 +329,23 @@ export default function Index() {
           onBooked={() => { setSelectedDate(null); setRefreshKey(k => k + 1); }}
         />
       )}
+
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Help & Support</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>For assistance, contact:</p>
+            {settings.supportContactName && <p className="font-medium text-foreground">{settings.supportContactName}</p>}
+            {settings.supportContactNumber && (
+              <p>
+                📞 <a href={`tel:${settings.supportContactNumber}`} className="text-primary underline">{settings.supportContactNumber}</a>
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
