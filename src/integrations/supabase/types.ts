@@ -149,6 +149,7 @@ export type Database = {
           hall_open_time: number
           halls: Json
           id: number
+          management_whatsapp: string | null
           max_custom_hours: number
           payment_mode: string
           payment_qr_url: string | null
@@ -158,6 +159,8 @@ export type Database = {
           rules_pdf_name: string | null
           rules_pdf_url: string | null
           society_name: string | null
+          support_contact_name: string | null
+          support_contact_number: string | null
           updated_at: string
           upi_id: string | null
         }
@@ -169,6 +172,7 @@ export type Database = {
           hall_open_time?: number
           halls?: Json
           id?: number
+          management_whatsapp?: string | null
           max_custom_hours?: number
           payment_mode?: string
           payment_qr_url?: string | null
@@ -178,6 +182,8 @@ export type Database = {
           rules_pdf_name?: string | null
           rules_pdf_url?: string | null
           society_name?: string | null
+          support_contact_name?: string | null
+          support_contact_number?: string | null
           updated_at?: string
           upi_id?: string | null
         }
@@ -189,6 +195,7 @@ export type Database = {
           hall_open_time?: number
           halls?: Json
           id?: number
+          management_whatsapp?: string | null
           max_custom_hours?: number
           payment_mode?: string
           payment_qr_url?: string | null
@@ -198,6 +205,8 @@ export type Database = {
           rules_pdf_name?: string | null
           rules_pdf_url?: string | null
           society_name?: string | null
+          support_contact_name?: string | null
+          support_contact_number?: string | null
           updated_at?: string
           upi_id?: string | null
         }
