@@ -1,7 +1,30 @@
 import jsPDF from 'jspdf';
+import QRCode from 'react-qr-code';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
 import { type Booking, type HallSettings, HALL_LABELS, getSlotTimes, formatHour, getCachedSettings } from './bookingStore';
 
-export function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
+function svgToDataUrl(svgMarkup: string): Promise<string> {
+  return new Promise((resolve) => {
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.drawImage(img, 0, 0, 200, 200);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = url;
+  });
+}
+
+export async function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   const settings = getCachedSettings();
   const societyName = settings.societyName || 'Ashar 16 CHSL';
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
