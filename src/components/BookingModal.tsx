@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,32 @@ interface Props {
   date: string;
   onClose: () => void;
   onBooked: () => void;
+}
+
+function buildManagementMessage(booking: Booking, settings: HallSettings): string {
+  const societyName = settings.societyName || 'Ashar 16 CHSL';
+  const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const slotTimes = getSlotTimes(settings);
+  const slotLabel = booking.timeSlot === 'custom'
+    ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
+    : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
+
+  const typeLabel = booking.timeSlot === 'full' ? 'Full Day' : 'Half Day';
+
+  return [
+    `Hello Management, I have booked a hall at ${societyName}.`,
+    ``,
+    `Details:`,
+    `Name: ${booking.name}`,
+    `Date: ${formattedDate}`,
+    `Hall: ${HALL_LABELS[booking.hall]}`,
+    `Type: ${typeLabel}`,
+    `Total: ₹${booking.rent.toLocaleString('en-IN')}`,
+    ``,
+    `Receipt attached. Please confirm.`,
+  ].join('\n');
 }
 
 function buildGuardMessage(booking: Booking, settings: HallSettings): string {
