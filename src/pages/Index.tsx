@@ -329,6 +329,23 @@ export default function Index() {
           onBooked={() => { setSelectedDate(null); setRefreshKey(k => k + 1); }}
         />
       )}
+
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Help & Support</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground space-y-2">
+            <p>For assistance, contact:</p>
+            {settings.supportContactName && <p className="font-medium text-foreground">{settings.supportContactName}</p>}
+            {settings.supportContactNumber && (
+              <p>
+                📞 <a href={`tel:${settings.supportContactNumber}`} className="text-primary underline">{settings.supportContactNumber}</a>
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
