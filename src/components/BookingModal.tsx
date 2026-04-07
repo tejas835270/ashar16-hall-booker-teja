@@ -196,6 +196,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
       });
       setBooking(b);
       setStep('confirmation');
+      // Fire confetti
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.5 } }), 300);
     } catch (err) {
       toast.error('Failed to create booking');
     } finally {
@@ -203,7 +206,14 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     }
   }
 
-  function handleShareWhatsApp() {
+  function handleShareWhatsAppManagement() {
+    if (!booking || !settings) return;
+    const msg = buildManagementMessage(booking, settings);
+    const phone = settings.managementWhatsapp || '';
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  function handleShareWhatsAppGuard() {
     if (!booking || !settings) return;
     const msg = buildGuardMessage(booking, settings);
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
