@@ -138,23 +138,33 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
   y += 20;
 
   if (verificationUrl) {
+    // Render QR code as image
+    const svgMarkup = renderToStaticMarkup(createElement(QRCode, { value: verificationUrl, size: 200 }));
+    const qrDataUrl = await svgToDataUrl(svgMarkup);
+
     doc.setFillColor(245, 247, 250);
-    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'F');
+    doc.roundedRect(margin, y, w - margin * 2, 60, 3, 3, 'F');
     doc.setDrawColor(200, 210, 225);
-    doc.roundedRect(margin, y, w - margin * 2, 30, 3, 3, 'S');
+    doc.roundedRect(margin, y, w - margin * 2, 60, 3, 3, 'S');
     y += 8;
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 55, 90);
     doc.setFontSize(10);
     doc.text('Verification QR Code', margin + 5, y);
+
+    // Embed QR image
+    doc.addImage(qrDataUrl, 'PNG', w - margin - 45, y - 4, 40, 40);
+
     y += 6;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(8);
-    doc.text(`Scan QR or visit: ${verificationUrl}`, margin + 5, y);
-    y += 6;
+    doc.text(`Scan for payment verification`, margin + 5, y);
+    y += 5;
     doc.text(`Booking ID: ${booking.id}`, margin + 5, y);
-    y += 14;
+    y += 5;
+    doc.text(`URL: ${verificationUrl}`, margin + 5, y);
+    y += 40;
   }
 
   doc.setFontSize(9);
