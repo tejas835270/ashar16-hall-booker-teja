@@ -89,6 +89,9 @@ export interface HallSettings {
   penaltyNotice?: string;
   chequePayeeName?: string;
   customFields: CustomField[];
+  managementWhatsapp?: string;
+  supportContactName?: string;
+  supportContactNumber?: string;
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
@@ -130,6 +133,9 @@ function rowToSettings(row: any): HallSettings {
     penaltyNotice: row.penalty_notice || undefined,
     chequePayeeName: row.cheque_payee_name || 'Ashar 16 Co. Op. Societies Association Ltd',
     customFields: Array.isArray(row.custom_fields) ? row.custom_fields : [],
+    managementWhatsapp: row.management_whatsapp || undefined,
+    supportContactName: row.support_contact_name || undefined,
+    supportContactNumber: row.support_contact_number || undefined,
   };
 }
 
@@ -163,6 +169,9 @@ export async function saveSettings(settings: HallSettings): Promise<void> {
     penalty_notice: settings.penaltyNotice || null,
     cheque_payee_name: settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd',
     custom_fields: settings.customFields as any,
+    management_whatsapp: settings.managementWhatsapp || null,
+    support_contact_name: settings.supportContactName || null,
+    support_contact_number: settings.supportContactNumber || null,
     updated_at: new Date().toISOString(),
   }).eq('id', 1);
   cachedSettings = settings;
