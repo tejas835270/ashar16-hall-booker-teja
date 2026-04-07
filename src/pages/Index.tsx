@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   fetchActiveBookings, fetchSettings, saveSettings, formatHour, getSlotTimes,
   HALL_LABELS, type Booking, type HallSettings

@@ -479,8 +479,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   </div>
                 </div>
                 <div>
-                  <p className="font-bold text-xl text-foreground">Booking Confirmed! 🎉</p>
-                  <p className="text-muted-foreground text-sm mt-1">Your booking ID: <span className="font-mono font-bold text-primary text-base">{booking.id}</span></p>
+                  <p className="font-bold text-xl text-foreground">Success! 🎉</p>
+                  <p className="text-muted-foreground text-sm mt-1">Your booking is recorded. Please download your receipt and send it to Management.</p>
+                  <p className="text-muted-foreground text-xs mt-1">Booking ID: <span className="font-mono font-bold text-primary text-base">{booking.id}</span></p>
                 </div>
 
                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-left">
@@ -490,6 +491,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <div className="bg-accent/60 rounded-lg p-4 inline-block mx-auto border border-border/30">
                   <QRCode value={verificationUrl || booking.id} size={160} />
+                  <p className="text-xs text-muted-foreground mt-2">Scan for payment verification</p>
                 </div>
 
                 <div className="bg-accent/60 rounded-lg p-3 text-sm text-left space-y-1 border border-border/30">
@@ -501,7 +503,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p><span className="text-muted-foreground">Event:</span> {booking.eventType}</p>
                   <p><span className="text-muted-foreground">Attendees:</span> {booking.memberCount}</p>
                   <p><span className="text-muted-foreground">Amount Paid:</span> ₹{booking.total.toLocaleString('en-IN')}</p>
-                  {/* Show custom field values */}
                   {booking.customData && settings.customFields.map(f => {
                     const val = booking.customData?.[f.id];
                     if (!val) return null;
@@ -519,7 +520,10 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                     <Send className="h-4 w-4 mr-1.5" /> Copy
                   </Button>
                 </div>
-                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsApp}>
+                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppManagement}>
+                  <Send className="h-4 w-4 mr-1.5" /> Send Receipt to Management
+                </Button>
+                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppGuard}>
                   <Send className="h-4 w-4 mr-1.5" /> Share with Guard via WhatsApp
                 </Button>
                 <Button className="w-full rounded-lg" onClick={onBooked}>Done</Button>
