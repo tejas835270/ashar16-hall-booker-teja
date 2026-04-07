@@ -109,6 +109,7 @@ export default function Index() {
   const [settings, setSettings] = useState<HallSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Inline editing for society name
   const [editingName, setEditingName] = useState(false);
@@ -239,6 +240,11 @@ export default function Index() {
         <p className="text-muted-foreground text-sm mt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
           Select an available date to book the community hall
         </p>
+        {(settings.supportContactName || settings.supportContactNumber) && (
+          <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowHelp(true)}>
+            <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+          </Button>
+        )}
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
