@@ -59,7 +59,16 @@ export function logout(): void {
 }
 
 export function isAdmin(): boolean {
+  const role = getAuth().role;
+  return role === 'admin' || role === 'viewer_admin';
+}
+
+export function isSuperAdmin(): boolean {
   return getAuth().role === 'admin';
+}
+
+export function isViewerAdmin(): boolean {
+  return getAuth().role === 'viewer_admin';
 }
 
 export function isGuard(): boolean {
