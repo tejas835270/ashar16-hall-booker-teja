@@ -35,32 +35,6 @@ function buildManagementMessage(booking: Booking, settings: HallSettings): strin
     ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
     : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
 
-  const typeLabel = booking.timeSlot === 'full' ? 'Full Day' : 'Half Day';
-
-  return [
-    `Hello Management, I have booked a hall at ${societyName}.`,
-    ``,
-    `Details:`,
-    `Name: ${booking.name}`,
-    `Date: ${formattedDate}`,
-    `Hall: ${HALL_LABELS[booking.hall]}`,
-    `Type: ${typeLabel}`,
-    `Total: ₹${booking.rent.toLocaleString('en-IN')}`,
-    ``,
-    `Receipt attached. Please confirm.`,
-  ].join('\n');
-}
-
-function buildGuardMessage(booking: Booking, settings: HallSettings): string {
-  const societyName = settings.societyName || 'Ashar 16 CHSL';
-  const formattedDate = new Date(booking.date + 'T00:00:00').toLocaleDateString('en-IN', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-  });
-  const slotTimes = getSlotTimes(settings);
-  const slotLabel = booking.timeSlot === 'custom'
-    ? `Custom (${formatHour(booking.customStartHour!)} – ${formatHour(booking.customEndHour!)})`
-    : slotTimes[booking.timeSlot as keyof typeof slotTimes]?.label || booking.timeSlot;
-
   return [
     `🏢 *${societyName} – Booking Confirmation*`,
     ``,
@@ -78,6 +52,8 @@ function buildGuardMessage(booking: Booking, settings: HallSettings): string {
     `💰 Amount Paid: ₹${booking.total.toLocaleString('en-IN')}`,
   ].join('\n');
 }
+
+// buildGuardMessage removed — no longer needed
 
 export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [step, setStep] = useState<Step>('form');
@@ -213,15 +189,9 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
-  function handleShareWhatsAppGuard() {
-    if (!booking || !settings) return;
-    const msg = buildGuardMessage(booking, settings);
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  }
-
   function handleCopyToClipboard() {
     if (!booking || !settings) return;
-    navigator.clipboard.writeText(buildGuardMessage(booking, settings).replace(/\*/g, '')).then(() => {
+    navigator.clipboard.writeText(buildManagementMessage(booking, settings).replace(/\*/g, '')).then(() => {
       toast.success('Booking details copied to clipboard!');
     });
   }
@@ -514,17 +484,24 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" size="sm" className="rounded-lg" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
-                    <Download className="h-4 w-4 mr-1.5" /> PDF
+                    <Download className="h-4 w-4 mr-1.5" /> Download Receipt
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={handleCopyToClipboard}>
-                    <Send className="h-4 w-4 mr-1.5" /> Copy
+                  <Button variant="secondary" size="sm" className="rounded-lg" onClick={handleShareWhatsAppManagement}>
+                    <Send className="h-4 w-4 mr-1.5" /> Send to Management
                   </Button>
                 </div>
-                <Button variant="secondary" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppManagement}>
-                  <Send className="h-4 w-4 mr-1.5" /> Send Receipt to Management
-                </Button>
-                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={handleShareWhatsAppGuard}>
-                  <Send className="h-4 w-4 mr-1.5" /> Share with Guard via WhatsApp
+
+                <div className="bg-muted/60 border border-border/40 rounded-lg p-3 text-left space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">📌 How to share your receipt</p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Click <strong>"Download Receipt"</strong> to save your PDF.</li>
+                    <li>Click <strong>"Send to Management"</strong> to open WhatsApp.</li>
+                    <li>Attach the downloaded PDF to the message and hit send!</li>
+                  </ol>
+                </div>
+
+                <Button variant="outline" size="sm" className="w-full rounded-lg" onClick={handleCopyToClipboard}>
+                  <Send className="h-4 w-4 mr-1.5" /> Copy Details
                 </Button>
                 <Button className="w-full rounded-lg" onClick={onBooked}>Done</Button>
               </div>
