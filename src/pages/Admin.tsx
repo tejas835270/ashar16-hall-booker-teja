@@ -628,7 +628,8 @@ function SecurityTab() {
     setShowConfirm(false);
     const ok = await changePassword(targetRole, newPassword, reason.trim());
     if (ok) {
-      toast.success(`${targetRole === 'admin' ? 'Admin' : 'Guard'} password changed successfully`);
+      const roleLabel = targetRole === 'admin' ? 'Super Admin' : targetRole === 'viewer_admin' ? 'Viewer Admin' : 'Guard';
+      toast.success(`${roleLabel} password changed successfully`);
       setNewPassword('');
       setConfirmPassword('');
       setReason('');
