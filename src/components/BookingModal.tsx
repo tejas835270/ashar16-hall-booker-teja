@@ -459,11 +459,6 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Please submit your Security Deposit cheque of <strong>₹{booking.deposit.toLocaleString('en-IN')}</strong> to the society office, made out to <strong>"{settings.chequePayeeName || 'Ashar 16 Co. Op. Societies Association Ltd'}"</strong>.</p>
                 </div>
 
-                <div className="bg-accent/60 rounded-lg p-4 inline-block mx-auto border border-border/30">
-                  <QRCode value={verificationUrl || booking.id} size={160} />
-                  <p className="text-xs text-muted-foreground mt-2">Scan for payment verification</p>
-                </div>
-
                 <div className="bg-accent/60 rounded-lg p-3 text-sm text-left space-y-1 border border-border/30">
                   <p><span className="text-muted-foreground">Date:</span> {formattedDate}</p>
                   <p><span className="text-muted-foreground">Hall:</span> {HALL_LABELS[booking.hall]}</p>
@@ -480,14 +475,20 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   })}
                 </div>
 
-                <p className="text-xs text-muted-foreground">Show this QR code to the security guard on the day of your event.</p>
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-left">
+                  <p className="text-xs text-primary font-semibold">🛡️ Show the QR code in your downloaded receipt to the guard on the day of the event.</p>
+                </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
+                <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 text-left">
+                  <p className="text-xs text-destructive font-bold">⚠️ MANDATORY: Send the Booking receipt to Management for confirmation.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full rounded-lg" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
                     <Download className="h-4 w-4 mr-1.5" /> Download Receipt
                   </Button>
-                  <Button variant="secondary" size="sm" className="rounded-lg" onClick={handleShareWhatsAppManagement}>
-                    <Send className="h-4 w-4 mr-1.5" /> Send to Management
+                  <Button variant="secondary" className="w-full rounded-lg" onClick={handleShareWhatsAppManagement}>
+                    <Send className="h-4 w-4 mr-1.5" /> Send to Management via WhatsApp
                   </Button>
                 </div>
 

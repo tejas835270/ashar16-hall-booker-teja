@@ -24,6 +24,21 @@ function svgToDataUrl(svgMarkup: string): Promise<string> {
   });
 }
 
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function downloadBookingPDF(booking: Booking, verificationUrl?: string) {
   const settings = getCachedSettings();
   const societyName = settings.societyName || 'Ashar 16 CHSL';
@@ -69,6 +84,17 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
 
   const hallLabel = HALL_LABELS[booking.hall] || booking.hall;
 
+  // Determine layout: if payment screenshot exists, use two-column layout
+  let paymentImgDataUrl: string | null = null;
+  if (booking.paymentScreenshotUrl) {
+    paymentImgDataUrl = await loadImageAsDataUrl(booking.paymentScreenshotUrl);
+  }
+
+  const detailsWidth = paymentImgDataUrl ? (w - margin * 2) * 0.58 : w - margin * 2;
+  const imgX = margin + detailsWidth + 5;
+  const imgWidth = paymentImgDataUrl ? (w - margin * 2) - detailsWidth - 5 : 0;
+  const detailsStartY = y;
+
   const rows: [string, string][] = [
     ['Date', formattedDate],
     ['Hall', hallLabel],
@@ -82,7 +108,6 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
     ['Booking Type', booking.bookingType === 'manual' ? 'Manual (Admin)' : 'Online'],
   ];
 
-  // Add custom data fields
   if (booking.customData) {
     const customFields = settings.customFields || [];
     customFields.forEach(field => {
@@ -92,7 +117,7 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
   }
 
   const colX = margin;
-  const valX = margin + 50;
+  const valX = margin + 40;
 
   rows.forEach(([label, value]) => {
     doc.setFont('helvetica', 'bold');
@@ -100,11 +125,32 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
     doc.text(label, colX, y);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(30, 30, 30);
-    doc.text(value, valX, y);
-    y += 8;
+    const maxW = detailsWidth - 42;
+    const lines = doc.splitTextToSize(value, maxW);
+    doc.text(lines, valX, y);
+    y += Math.max(lines.length, 1) * 5 + 3;
   });
 
-  y += 4;
+  // Draw payment screenshot on the right if available
+  if (paymentImgDataUrl) {
+    doc.setFillColor(245, 247, 250);
+    doc.roundedRect(imgX, detailsStartY - 4, imgWidth, 70, 2, 2, 'F');
+    doc.setDrawColor(200, 210, 225);
+    doc.roundedRect(imgX, detailsStartY - 4, imgWidth, 70, 2, 2, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 55, 90);
+    doc.setFontSize(8);
+    doc.text('Payment Proof', imgX + imgWidth / 2, detailsStartY + 2, { align: 'center' });
+    try {
+      doc.addImage(paymentImgDataUrl, 'JPEG', imgX + 3, detailsStartY + 5, imgWidth - 6, 58);
+    } catch {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+      doc.text('(image unavailable)', imgX + 3, detailsStartY + 30);
+    }
+  }
+
+  y = Math.max(y, paymentImgDataUrl ? detailsStartY + 70 : y) + 4;
 
   // Payment summary box
   doc.setFillColor(245, 247, 250);
@@ -138,7 +184,6 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
   y += 20;
 
   if (verificationUrl) {
-    // Render QR code as image
     const svgMarkup = renderToStaticMarkup(createElement(QRCode, { value: verificationUrl, size: 200 }));
     const qrDataUrl = await svgToDataUrl(svgMarkup);
 
@@ -152,14 +197,13 @@ export async function downloadBookingPDF(booking: Booking, verificationUrl?: str
     doc.setFontSize(10);
     doc.text('Verification QR Code', margin + 5, y);
 
-    // Embed QR image
     doc.addImage(qrDataUrl, 'PNG', w - margin - 45, y - 4, 40, 40);
 
     y += 6;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(8);
-    doc.text(`Scan for payment verification`, margin + 5, y);
+    doc.text('Scan for payment verification', margin + 5, y);
     y += 5;
     doc.text(`Booking ID: ${booking.id}`, margin + 5, y);
     y += 5;
