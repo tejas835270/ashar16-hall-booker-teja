@@ -23,7 +23,7 @@ import {
   fetchSettings, uploadFile, deleteBooking,
   type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
-import { getAuth, isAdmin, logout, changePassword, fetchPasswordChangeLogs, type PasswordChangeLog } from '@/lib/authStore';
+import { getAuth, isAdmin, isSuperAdmin, isViewerAdmin, logout, changePassword, fetchPasswordChangeLogs, type PasswordChangeLog } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
 import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import LoginForm from '@/components/LoginForm';
@@ -47,6 +47,7 @@ const MANDATORY_IMPORT_FIELDS = ['Name', 'Flat', 'Date', 'Event', 'Phone', 'Hall
 
 export default function Admin() {
   const [authed, setAuthed] = useState(isAdmin());
+  const [viewerOnly, setViewerOnly] = useState(isViewerAdmin());
   const [tab, setTab] = useState<Tab>('bookings');
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -98,7 +99,7 @@ export default function Admin() {
   }, [bookings, searchQuery, sortDir]);
 
   if (!authed) {
-    return <LoginForm expectedRole="admin" onSuccess={() => setAuthed(true)} />;
+    return <LoginForm expectedRole="admin" onSuccess={(role) => { setAuthed(true); setViewerOnly(role === 'viewer_admin'); }} />;
   }
 
   const activeBookings = bookings.filter(b => b.status === 'confirmed');
@@ -323,7 +324,10 @@ export default function Admin() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          {viewerOnly && <Badge variant="secondary" className="text-xs">Read-Only</Badge>}
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-accent rounded-lg p-1 flex-wrap">
             <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -332,12 +336,16 @@ export default function Admin() {
             <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
             </button>
-            <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <KeyRound className="h-4 w-4 inline mr-1.5" />Security
-            </button>
-            <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Settings className="h-4 w-4 inline mr-1.5" />Settings
-            </button>
+            {!viewerOnly && (
+              <>
+                <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                  <KeyRound className="h-4 w-4 inline mr-1.5" />Security
+                </button>
+                <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                  <Settings className="h-4 w-4 inline mr-1.5" />Settings
+                </button>
+              </>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
         </div>
@@ -383,13 +391,17 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1.5" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { setShowImportModal(true); setImportErrors([]); }}>
-              <FileUp className="h-4 w-4 mr-1.5" /> Import
-            </Button>
-            <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
-            <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
-              <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
-            </Button>
+            {!viewerOnly && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { setShowImportModal(true); setImportErrors([]); }}>
+                  <FileUp className="h-4 w-4 mr-1.5" /> Import
+                </Button>
+                <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
+                  <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Table */}
@@ -408,7 +420,7 @@ export default function Admin() {
                     <th className="text-right p-3 font-medium text-muted-foreground">Penalty</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Type</th>
-                    <th className="p-3 font-medium text-muted-foreground">Actions</th>
+                    {!viewerOnly && <th className="p-3 font-medium text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -433,6 +445,7 @@ export default function Admin() {
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
+                      {!viewerOnly && (
                       <td className="p-3">
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => setDetailBooking(b)} title="View Details">
@@ -461,6 +474,7 @@ export default function Admin() {
                           </Button>
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -580,7 +594,7 @@ export default function Admin() {
 
 // --- Security Tab: Password Management & Audit Logs ---
 function SecurityTab() {
-  const [targetRole, setTargetRole] = useState<'admin' | 'guard'>('guard');
+  const [targetRole, setTargetRole] = useState<'admin' | 'guard' | 'viewer_admin'>('guard');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [reason, setReason] = useState('');
@@ -614,7 +628,8 @@ function SecurityTab() {
     setShowConfirm(false);
     const ok = await changePassword(targetRole, newPassword, reason.trim());
     if (ok) {
-      toast.success(`${targetRole === 'admin' ? 'Admin' : 'Guard'} password changed successfully`);
+      const roleLabel = targetRole === 'admin' ? 'Super Admin' : targetRole === 'viewer_admin' ? 'Viewer Admin' : 'Guard';
+      toast.success(`${roleLabel} password changed successfully`);
       setNewPassword('');
       setConfirmPassword('');
       setReason('');
@@ -637,11 +652,12 @@ function SecurityTab() {
         <div className="space-y-4 max-w-md">
           <div className="space-y-1.5">
             <Label>Change Password For</Label>
-            <Select value={targetRole} onValueChange={v => setTargetRole(v as 'admin' | 'guard')}>
+            <Select value={targetRole} onValueChange={v => setTargetRole(v as 'admin' | 'guard' | 'viewer_admin')}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="admin">Super Admin</SelectItem>
                 <SelectItem value="guard">Guard</SelectItem>
+                <SelectItem value="viewer_admin">Viewer Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>

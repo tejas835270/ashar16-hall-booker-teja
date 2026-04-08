@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const AUTH_KEY = 'community_hall_auth';
 
-export type Role = 'admin' | 'guard' | null;
+export type Role = 'admin' | 'guard' | 'viewer_admin' | null;
 
 interface AuthState {
   role: Role;
@@ -10,16 +10,18 @@ interface AuthState {
 }
 
 // Fetch credentials from DB
-async function fetchCredentials(): Promise<{ admin: { username: string; password: string }; guard: { username: string; password: string } }> {
+async function fetchCredentials(): Promise<{ admin: { username: string; password: string }; guard: { username: string; password: string }; viewer_admin: { username: string; password: string } }> {
   const { data } = await supabase.from('credentials').select('*');
   const defaults = {
     admin: { username: 'Ashar16', password: 'admin123' },
     guard: { username: 'Ashar_Guard', password: 'guard123' },
+    viewer_admin: { username: 'Viewer_Admin', password: 'view123' },
   };
   if (!data) return defaults;
   for (const row of data) {
     if (row.role === 'admin') defaults.admin = { username: row.username, password: row.password };
     if (row.role === 'guard') defaults.guard = { username: row.username, password: row.password };
+    if (row.role === 'viewer_admin') defaults.viewer_admin = { username: row.username, password: row.password };
   }
   return defaults;
 }
@@ -35,6 +37,11 @@ export async function loginAsync(username: string, password: string): Promise<Ro
     const state: AuthState = { role: 'guard', username };
     localStorage.setItem(AUTH_KEY, JSON.stringify(state));
     return 'guard';
+  }
+  if (username === creds.viewer_admin.username && password === creds.viewer_admin.password) {
+    const state: AuthState = { role: 'viewer_admin', username };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state));
+    return 'viewer_admin';
   }
   return null;
 }
@@ -52,7 +59,16 @@ export function logout(): void {
 }
 
 export function isAdmin(): boolean {
+  const role = getAuth().role;
+  return role === 'admin' || role === 'viewer_admin';
+}
+
+export function isSuperAdmin(): boolean {
   return getAuth().role === 'admin';
+}
+
+export function isViewerAdmin(): boolean {
+  return getAuth().role === 'viewer_admin';
 }
 
 export function isGuard(): boolean {
@@ -60,7 +76,7 @@ export function isGuard(): boolean {
 }
 
 // Password management (admin only)
-export async function changePassword(targetRole: 'admin' | 'guard', newPassword: string, reason: string): Promise<boolean> {
+export async function changePassword(targetRole: 'admin' | 'guard' | 'viewer_admin', newPassword: string, reason: string): Promise<boolean> {
   const auth = getAuth();
   if (auth.role !== 'admin') return false;
 
