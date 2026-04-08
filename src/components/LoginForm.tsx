@@ -21,9 +21,9 @@ export default function LoginForm({ expectedRole, onSuccess }: Props) {
     setLoading(true);
     const role = await loginAsync(username, password);
     setLoading(false);
-    if (role === expectedRole) {
+    if (role === expectedRole || (expectedRole === 'admin' && role === 'viewer_admin')) {
       onSuccess(role);
-      toast.success(`Logged in as ${expectedRole}`);
+      toast.success(`Logged in as ${role === 'viewer_admin' ? 'Viewer Admin' : expectedRole}`);
     } else {
       toast.error('Invalid credentials');
     }
