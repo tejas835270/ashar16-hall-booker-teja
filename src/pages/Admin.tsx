@@ -594,7 +594,7 @@ export default function Admin() {
 
 // --- Security Tab: Password Management & Audit Logs ---
 function SecurityTab() {
-  const [targetRole, setTargetRole] = useState<'admin' | 'guard'>('guard');
+  const [targetRole, setTargetRole] = useState<'admin' | 'guard' | 'viewer_admin'>('guard');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [reason, setReason] = useState('');
@@ -651,11 +651,12 @@ function SecurityTab() {
         <div className="space-y-4 max-w-md">
           <div className="space-y-1.5">
             <Label>Change Password For</Label>
-            <Select value={targetRole} onValueChange={v => setTargetRole(v as 'admin' | 'guard')}>
+            <Select value={targetRole} onValueChange={v => setTargetRole(v as 'admin' | 'guard' | 'viewer_admin')}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="admin">Super Admin</SelectItem>
                 <SelectItem value="guard">Guard</SelectItem>
+                <SelectItem value="viewer_admin">Viewer Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
