@@ -23,7 +23,7 @@ import {
   fetchSettings, uploadFile, deleteBooking,
   type Booking, type HallOption, type UserType, type TimeSlot, type HallSettings
 } from '@/lib/bookingStore';
-import { getAuth, isAdmin, logout, changePassword, fetchPasswordChangeLogs, type PasswordChangeLog } from '@/lib/authStore';
+import { getAuth, isAdmin, isSuperAdmin, isViewerAdmin, logout, changePassword, fetchPasswordChangeLogs, type PasswordChangeLog } from '@/lib/authStore';
 import AdminSettings from '@/components/AdminSettings';
 import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 import LoginForm from '@/components/LoginForm';
@@ -47,6 +47,7 @@ const MANDATORY_IMPORT_FIELDS = ['Name', 'Flat', 'Date', 'Event', 'Phone', 'Hall
 
 export default function Admin() {
   const [authed, setAuthed] = useState(isAdmin());
+  const [viewerOnly, setViewerOnly] = useState(isViewerAdmin());
   const [tab, setTab] = useState<Tab>('bookings');
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -98,7 +99,7 @@ export default function Admin() {
   }, [bookings, searchQuery, sortDir]);
 
   if (!authed) {
-    return <LoginForm expectedRole="admin" onSuccess={() => setAuthed(true)} />;
+    return <LoginForm expectedRole="admin" onSuccess={(role) => { setAuthed(true); setViewerOnly(role === 'viewer_admin'); }} />;
   }
 
   const activeBookings = bookings.filter(b => b.status === 'confirmed');
