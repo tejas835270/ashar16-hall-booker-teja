@@ -324,7 +324,10 @@ export default function Admin() {
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          {viewerOnly && <Badge variant="secondary" className="text-xs">Read-Only</Badge>}
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-accent rounded-lg p-1 flex-wrap">
             <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -333,12 +336,16 @@ export default function Admin() {
             <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
             </button>
-            <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <KeyRound className="h-4 w-4 inline mr-1.5" />Security
-            </button>
-            <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              <Settings className="h-4 w-4 inline mr-1.5" />Settings
-            </button>
+            {!viewerOnly && (
+              <>
+                <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                  <KeyRound className="h-4 w-4 inline mr-1.5" />Security
+                </button>
+                <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                  <Settings className="h-4 w-4 inline mr-1.5" />Settings
+                </button>
+              </>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
         </div>
