@@ -391,13 +391,17 @@ export default function Admin() {
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1.5" /> Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { setShowImportModal(true); setImportErrors([]); }}>
-              <FileUp className="h-4 w-4 mr-1.5" /> Import
-            </Button>
-            <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
-            <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
-              <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
-            </Button>
+            {!viewerOnly && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => { setShowImportModal(true); setImportErrors([]); }}>
+                  <FileUp className="h-4 w-4 mr-1.5" /> Import
+                </Button>
+                <input ref={importFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportFile} />
+                <Button onClick={() => { setEditingBooking(null); setShowManualModal(true); }}>
+                  <Plus className="h-4 w-4 mr-1.5" /> Manual Booking
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Table */}
@@ -416,7 +420,7 @@ export default function Admin() {
                     <th className="text-right p-3 font-medium text-muted-foreground">Penalty</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Type</th>
-                    <th className="p-3 font-medium text-muted-foreground">Actions</th>
+                    {!viewerOnly && <th className="p-3 font-medium text-muted-foreground">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
