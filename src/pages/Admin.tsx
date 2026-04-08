@@ -445,6 +445,7 @@ export default function Admin() {
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
+                      {!viewerOnly && (
                       <td className="p-3">
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" onClick={() => setDetailBooking(b)} title="View Details">
@@ -473,6 +474,7 @@ export default function Admin() {
                           </Button>
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
