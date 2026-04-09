@@ -28,20 +28,22 @@ async function fetchCredentials(): Promise<{ admin: { username: string; password
 
 export async function loginAsync(username: string, password: string): Promise<Role> {
   const creds = await fetchCredentials();
+  // Super Admin check first
   if (username === creds.admin.username && password === creds.admin.password) {
     const state: AuthState = { role: 'admin', username };
     localStorage.setItem(AUTH_KEY, JSON.stringify(state));
     return 'admin';
   }
+  // Viewer Admin: same username as admin but uses the viewer_admin password from DB
+  if (username === creds.admin.username && password === creds.viewer_admin.password) {
+    const state: AuthState = { role: 'viewer_admin', username };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state));
+    return 'viewer_admin';
+  }
   if (username === creds.guard.username && password === creds.guard.password) {
     const state: AuthState = { role: 'guard', username };
     localStorage.setItem(AUTH_KEY, JSON.stringify(state));
     return 'guard';
-  }
-  if (username === creds.viewer_admin.username && password === creds.viewer_admin.password) {
-    const state: AuthState = { role: 'viewer_admin', username };
-    localStorage.setItem(AUTH_KEY, JSON.stringify(state));
-    return 'viewer_admin';
   }
   return null;
 }

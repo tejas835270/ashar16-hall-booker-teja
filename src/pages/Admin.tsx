@@ -322,32 +322,32 @@ export default function Admin() {
   if (loading) return <div className="container mx-auto px-4 py-6 max-w-5xl text-center"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Admin Dashboard</h1>
           {viewerOnly && <Badge variant="secondary" className="text-xs">Read-Only</Badge>}
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-accent rounded-lg p-1 flex-wrap">
-            <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button onClick={() => setTab('bookings')} className={`px-3 py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
-            <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button onClick={() => setTab('analytics')} className={`px-3 py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <BarChart3 className="h-4 w-4 inline mr-1.5" />Analytics
             </button>
             {!viewerOnly && (
               <>
-                <button onClick={() => setTab('security')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button onClick={() => setTab('security')} className={`px-3 py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors ${tab === 'security' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                   <KeyRound className="h-4 w-4 inline mr-1.5" />Security
                 </button>
-                <button onClick={() => setTab('settings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                <button onClick={() => setTab('settings')} className={`px-3 py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors ${tab === 'settings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                   <Settings className="h-4 w-4 inline mr-1.5" />Settings
                 </button>
               </>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
+          <Button variant="outline" size="sm" className="min-h-[44px]" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
         </div>
       </div>
 
@@ -405,22 +405,22 @@ export default function Admin() {
           </div>
 
           {/* Table */}
-          <div className="bg-card rounded-xl shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="bg-card rounded-xl shadow-card overflow-hidden border border-border/50">
+            <div className="overflow-x-auto -mx-0">
+              <table className="w-full text-sm min-w-[800px]">
                 <thead>
                   <tr className="border-b bg-accent/50">
                     <th className="text-left p-3 font-medium text-muted-foreground">ID</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Flat</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground hidden sm:table-cell">Name</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Hall</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Hall</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Slot</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Penalty</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Type</th>
-                    {!viewerOnly && <th className="p-3 font-medium text-muted-foreground">Actions</th>}
+                    <th className="p-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,47 +434,47 @@ export default function Admin() {
                           {b.id}
                         </button>
                       </td>
-                      <td className="p-3">{formatDate(b.date)}</td>
+                      <td className="p-3 whitespace-nowrap">{formatDate(b.date)}</td>
                       <td className="p-3">{b.flatNumber}</td>
-                      <td className="p-3 hidden sm:table-cell">{b.name}</td>
-                      <td className="p-3 hidden md:table-cell">{HALL_LABELS[b.hall] || '—'}</td>
-                      <td className="p-3">{slotLabel(b)}</td>
-                      <td className="p-3 text-right">₹{b.total.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-right">
+                      <td className="p-3">{b.name}</td>
+                      <td className="p-3">{HALL_LABELS[b.hall] || '—'}</td>
+                      <td className="p-3 whitespace-nowrap">{slotLabel(b)}</td>
+                      <td className="p-3 text-right whitespace-nowrap">₹{b.total.toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-right whitespace-nowrap">
                         {b.penaltyAmount ? <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span> : '—'}
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
-                      {!viewerOnly && (
                       <td className="p-3">
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setDetailBooking(b)} title="View Details">
+                          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setDetailBooking(b)} title="View Details">
                             <Eye className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           {b.paymentScreenshotUrl && (
-                            <Button variant="ghost" size="icon" onClick={() => setViewScreenshot(b.paymentScreenshotUrl!)} title="View Payment">
+                            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setViewScreenshot(b.paymentScreenshotUrl!)} title="View Payment">
                               <Camera className="h-4 w-4 text-primary" />
                             </Button>
                           )}
-                          {b.status === 'confirmed' && (
+                          {!viewerOnly && b.status === 'confirmed' && (
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit">
                                 <Pencil className="h-4 w-4 text-primary" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => setPenaltyBooking(b)} title="Penalty">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setPenaltyBooking(b)} title="Penalty">
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Mark Cancelled">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => handleCancel(b.id)} title="Mark Cancelled">
                                 <Ban className="h-4 w-4 text-amber-500" />
                               </Button>
                             </>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} title="Delete Permanently">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!viewerOnly && (
+                            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setDeleteTarget(b)} title="Delete Permanently">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -496,9 +496,9 @@ export default function Admin() {
 
       {/* Payment Screenshot Viewer */}
       <Dialog open={!!viewScreenshot} onOpenChange={() => setViewScreenshot(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[95vw]">
           <DialogHeader><DialogTitle>Payment Screenshot</DialogTitle></DialogHeader>
-          {viewScreenshot && <img src={viewScreenshot} alt="Payment screenshot" className="w-full rounded-lg" />}
+          {viewScreenshot && <img src={viewScreenshot} alt="Payment screenshot" className="w-full h-auto max-h-[70vh] object-contain rounded-lg" style={{ maxWidth: '100%' }} />}
         </DialogContent>
       </Dialog>
 
@@ -757,11 +757,11 @@ function BookingDetailModal({ booking: b, settings, onClose }: { booking: Bookin
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Booking Details — {b.id}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-2">
-            <div><span className="text-muted-foreground">Booking ID</span><p className="font-mono font-bold">{b.id}</p></div>
+            <div><span className="text-muted-foreground">Booking ID</span><p className="font-mono font-bold break-all">{b.id}</p></div>
             <div><span className="text-muted-foreground">Status</span><p className="font-medium capitalize">{b.status}</p></div>
             <div><span className="text-muted-foreground">Type</span><p className="font-medium capitalize">{b.bookingType}</p></div>
             <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formattedDate}</p></div>
@@ -786,7 +786,7 @@ function BookingDetailModal({ booking: b, settings, onClose }: { booking: Bookin
           {b.paymentScreenshotUrl && (
             <div className="border-t pt-3">
               <p className="text-muted-foreground text-xs mb-2">Payment Screenshot:</p>
-              <img src={b.paymentScreenshotUrl} alt="Payment" className="w-full max-h-48 object-contain rounded-lg" />
+              <img src={b.paymentScreenshotUrl} alt="Payment" className="w-full h-auto max-h-[50vh] object-contain rounded-lg" style={{ maxWidth: '100%' }} />
             </div>
           )}
           <p className="text-xs text-muted-foreground">Created: {new Date(b.createdAt).toLocaleString('en-IN')}</p>
