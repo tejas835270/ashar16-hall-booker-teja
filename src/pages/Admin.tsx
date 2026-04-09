@@ -322,10 +322,10 @@ export default function Admin() {
   if (loading) return <div className="container mx-auto px-4 py-6 max-w-5xl text-center"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 max-w-5xl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Admin Dashboard</h1>
           {viewerOnly && <Badge variant="secondary" className="text-xs">Read-Only</Badge>}
         </div>
         <div className="flex items-center gap-2">
