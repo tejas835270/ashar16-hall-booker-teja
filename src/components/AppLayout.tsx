@@ -28,12 +28,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [dark, toggleDark] = useDarkMode();
   const [societyName, setSocietyName] = useState('Ashar 16 CHSL');
 
+  const [bgImageUrl, setBgImageUrl] = useState<string | undefined>();
+
   useEffect(() => {
-    fetchSettings().then(s => setSocietyName(s.societyName || 'Ashar 16 CHSL'));
+    fetchSettings().then(s => {
+      setSocietyName(s.societyName || 'Ashar 16 CHSL');
+      setBgImageUrl(s.backgroundImageUrl);
+    });
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-page-gradient">
+    <div className="min-h-screen flex flex-col bg-page-gradient relative">
+      {bgImageUrl && (
+        <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${bgImageUrl})`, filter: 'blur(12px)', transform: 'scale(1.05)' }}
+          />
+          <div className="absolute inset-0 bg-background/70" />
+        </div>
+      )}
       <header className="gradient-hero sticky top-0 z-50 border-b border-white/5">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 text-primary-foreground">
@@ -72,7 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 relative z-10">{children}</main>
     </div>
   );
 }
