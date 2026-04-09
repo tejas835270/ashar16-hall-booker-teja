@@ -347,7 +347,7 @@ export default function Admin() {
               </>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
+          <Button variant="outline" size="sm" className="min-h-[44px]" onClick={handleLogout}><LogOut className="h-4 w-4 mr-1.5" /> Logout</Button>
         </div>
       </div>
 
