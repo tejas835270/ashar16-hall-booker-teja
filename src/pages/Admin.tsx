@@ -330,7 +330,7 @@ export default function Admin() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 bg-accent rounded-lg p-1 flex-wrap">
-            <button onClick={() => setTab('bookings')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+            <button onClick={() => setTab('bookings')} className={`px-3 py-2 min-h-[44px] rounded-md text-sm font-medium transition-colors ${tab === 'bookings' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               <CalendarDays className="h-4 w-4 inline mr-1.5" />Bookings
             </button>
             <button onClick={() => setTab('analytics')} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'analytics' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
