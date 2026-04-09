@@ -142,6 +142,7 @@ export type Database = {
       }
       settings: {
         Row: {
+          background_image_url: string | null
           cheque_payee_name: string | null
           custom_fields: Json | null
           deposit: number
@@ -165,6 +166,7 @@ export type Database = {
           upi_id: string | null
         }
         Insert: {
+          background_image_url?: string | null
           cheque_payee_name?: string | null
           custom_fields?: Json | null
           deposit?: number
@@ -188,6 +190,7 @@ export type Database = {
           upi_id?: string | null
         }
         Update: {
+          background_image_url?: string | null
           cheque_payee_name?: string | null
           custom_fields?: Json | null
           deposit?: number
