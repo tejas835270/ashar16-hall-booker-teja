@@ -496,9 +496,9 @@ export default function Admin() {
 
       {/* Payment Screenshot Viewer */}
       <Dialog open={!!viewScreenshot} onOpenChange={() => setViewScreenshot(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[95vw]">
           <DialogHeader><DialogTitle>Payment Screenshot</DialogTitle></DialogHeader>
-          {viewScreenshot && <img src={viewScreenshot} alt="Payment screenshot" className="w-full rounded-lg" />}
+          {viewScreenshot && <img src={viewScreenshot} alt="Payment screenshot" className="w-full h-auto max-h-[70vh] object-contain rounded-lg" style={{ maxWidth: '100%' }} />}
         </DialogContent>
       </Dialog>
 
