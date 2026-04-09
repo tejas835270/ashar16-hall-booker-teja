@@ -405,22 +405,22 @@ export default function Admin() {
           </div>
 
           {/* Table */}
-          <div className="bg-card rounded-xl shadow-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+          <div className="bg-card rounded-xl shadow-card overflow-hidden border border-border/50">
+            <div className="overflow-x-auto -mx-0">
+              <table className="w-full text-sm min-w-[800px]">
                 <thead>
                   <tr className="border-b bg-accent/50">
                     <th className="text-left p-3 font-medium text-muted-foreground">ID</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Date</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Flat</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground hidden sm:table-cell">Name</th>
-                    <th className="text-left p-3 font-medium text-muted-foreground hidden md:table-cell">Hall</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Name</th>
+                    <th className="text-left p-3 font-medium text-muted-foreground">Hall</th>
                     <th className="text-left p-3 font-medium text-muted-foreground">Slot</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Amount</th>
                     <th className="text-right p-3 font-medium text-muted-foreground">Penalty</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Status</th>
                     <th className="text-center p-3 font-medium text-muted-foreground">Type</th>
-                    {!viewerOnly && <th className="p-3 font-medium text-muted-foreground">Actions</th>}
+                    <th className="p-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -434,47 +434,47 @@ export default function Admin() {
                           {b.id}
                         </button>
                       </td>
-                      <td className="p-3">{formatDate(b.date)}</td>
+                      <td className="p-3 whitespace-nowrap">{formatDate(b.date)}</td>
                       <td className="p-3">{b.flatNumber}</td>
-                      <td className="p-3 hidden sm:table-cell">{b.name}</td>
-                      <td className="p-3 hidden md:table-cell">{HALL_LABELS[b.hall] || '—'}</td>
-                      <td className="p-3">{slotLabel(b)}</td>
-                      <td className="p-3 text-right">₹{b.total.toLocaleString('en-IN')}</td>
-                      <td className="p-3 text-right">
+                      <td className="p-3">{b.name}</td>
+                      <td className="p-3">{HALL_LABELS[b.hall] || '—'}</td>
+                      <td className="p-3 whitespace-nowrap">{slotLabel(b)}</td>
+                      <td className="p-3 text-right whitespace-nowrap">₹{b.total.toLocaleString('en-IN')}</td>
+                      <td className="p-3 text-right whitespace-nowrap">
                         {b.penaltyAmount ? <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span> : '—'}
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
-                      {!viewerOnly && (
                       <td className="p-3">
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setDetailBooking(b)} title="View Details">
+                          <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setDetailBooking(b)} title="View Details">
                             <Eye className="h-4 w-4 text-muted-foreground" />
                           </Button>
                           {b.paymentScreenshotUrl && (
-                            <Button variant="ghost" size="icon" onClick={() => setViewScreenshot(b.paymentScreenshotUrl!)} title="View Payment">
+                            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setViewScreenshot(b.paymentScreenshotUrl!)} title="View Payment">
                               <Camera className="h-4 w-4 text-primary" />
                             </Button>
                           )}
-                          {b.status === 'confirmed' && (
+                          {!viewerOnly && b.status === 'confirmed' && (
                             <>
-                              <Button variant="ghost" size="icon" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => { setEditingBooking(b); setShowManualModal(true); }} title="Edit">
                                 <Pencil className="h-4 w-4 text-primary" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => setPenaltyBooking(b)} title="Penalty">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setPenaltyBooking(b)} title="Penalty">
                                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleCancel(b.id)} title="Mark Cancelled">
+                              <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => handleCancel(b.id)} title="Mark Cancelled">
                                 <Ban className="h-4 w-4 text-amber-500" />
                               </Button>
                             </>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} title="Delete Permanently">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          {!viewerOnly && (
+                            <Button variant="ghost" size="icon" className="min-h-[44px] min-w-[44px]" onClick={() => setDeleteTarget(b)} title="Delete Permanently">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
