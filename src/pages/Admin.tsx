@@ -757,11 +757,11 @@ function BookingDetailModal({ booking: b, settings, onClose }: { booking: Bookin
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Booking Details — {b.id}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="grid grid-cols-2 gap-2">
-            <div><span className="text-muted-foreground">Booking ID</span><p className="font-mono font-bold">{b.id}</p></div>
+            <div><span className="text-muted-foreground">Booking ID</span><p className="font-mono font-bold break-all">{b.id}</p></div>
             <div><span className="text-muted-foreground">Status</span><p className="font-medium capitalize">{b.status}</p></div>
             <div><span className="text-muted-foreground">Type</span><p className="font-medium capitalize">{b.bookingType}</p></div>
             <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formattedDate}</p></div>
@@ -786,7 +786,7 @@ function BookingDetailModal({ booking: b, settings, onClose }: { booking: Bookin
           {b.paymentScreenshotUrl && (
             <div className="border-t pt-3">
               <p className="text-muted-foreground text-xs mb-2">Payment Screenshot:</p>
-              <img src={b.paymentScreenshotUrl} alt="Payment" className="w-full max-h-48 object-contain rounded-lg" />
+              <img src={b.paymentScreenshotUrl} alt="Payment" className="w-full h-auto max-h-[50vh] object-contain rounded-lg" style={{ maxWidth: '100%' }} />
             </div>
           )}
           <p className="text-xs text-muted-foreground">Created: {new Date(b.createdAt).toLocaleString('en-IN')}</p>
