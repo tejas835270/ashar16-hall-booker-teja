@@ -38,7 +38,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col relative">
+    <div className={`min-h-screen flex flex-col relative ${!bgImageUrl ? 'bg-page-gradient' : ''}`}>
       {bgImageUrl && (
         <div className="fixed inset-0 z-[-1] pointer-events-none" aria-hidden="true">
           <div
@@ -86,7 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="flex-1 relative z-10">{children}</main>
+      <main className="flex-1 relative z-[1]">{children}</main>
     </div>
   );
 }
