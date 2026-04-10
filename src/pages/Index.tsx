@@ -33,7 +33,7 @@ function SlotDetails({ date, settings, bookings, onBook, onClose }: { date: stri
   });
 
   return (
-    <div className="bg-card rounded-xl shadow-card border border-border/50 p-4 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+    <div className="bg-card backdrop-blur-md rounded-xl shadow-xl border border-border/50 p-4 mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-sm flex items-center gap-1.5">
           <Info className="h-4 w-4 text-primary" />
@@ -247,7 +247,7 @@ export default function Index() {
         )}
       </div>
 
-      <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
+      <div className="bg-card backdrop-blur-md rounded-2xl shadow-xl border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
         {admin && (
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
