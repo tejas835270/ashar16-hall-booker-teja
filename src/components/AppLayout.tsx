@@ -38,14 +38,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-page-gradient relative">
+    <div className="min-h-screen flex flex-col relative">
       {bgImageUrl && (
-        <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
+        <div className="fixed inset-0 z-[-1] pointer-events-none" aria-hidden="true">
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${bgImageUrl})`, filter: 'blur(12px)', transform: 'scale(1.05)' }}
           />
-          <div className="absolute inset-0 bg-background/70" />
+          <div className="absolute inset-0 bg-background/50" />
         </div>
       )}
       <header className="gradient-hero sticky top-0 z-50 border-b border-white/5">
