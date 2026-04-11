@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle } from 'lucide-react';
+import { X, CreditCard, CircleCheck as CheckCircle, Loader as Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, CircleHelp as HelpCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/button';
