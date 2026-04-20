@@ -92,7 +92,6 @@ export interface HallSettings {
   managementWhatsapp?: string;
   supportContactName?: string;
   supportContactNumber?: string;
-  backgroundImageUrl?: string;
 }
 
 const DEFAULT_SETTINGS: HallSettings = {
@@ -137,7 +136,6 @@ function rowToSettings(row: any): HallSettings {
     managementWhatsapp: row.management_whatsapp || undefined,
     supportContactName: row.support_contact_name || undefined,
     supportContactNumber: row.support_contact_number || undefined,
-    backgroundImageUrl: row.background_image_url || undefined,
   };
 }
 
@@ -174,7 +172,6 @@ export async function saveSettings(settings: HallSettings): Promise<void> {
     management_whatsapp: settings.managementWhatsapp || null,
     support_contact_name: settings.supportContactName || null,
     support_contact_number: settings.supportContactNumber || null,
-    background_image_url: settings.backgroundImageUrl || null,
     updated_at: new Date().toISOString(),
   }).eq('id', 1);
   cachedSettings = settings;

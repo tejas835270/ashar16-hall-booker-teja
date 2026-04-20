@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X, Image, GripVertical, Loader2 } from 'lucide-react';
+import { Save, Plus, Trash2, RotateCcw, Upload, FileText, X, Image, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,8 +33,6 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const qrInputRef = useRef<HTMLInputElement>(null);
-  const bgInputRef = useRef<HTMLInputElement>(null);
-  const [bgUploading, setBgUploading] = useState(false);
 
   async function handleSave() {
     setSaving(true);
@@ -397,40 +395,6 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
         </div>
       </div>
 
-      {/* Background Image */}
-      <div className={sectionClass}>
-        <h3 className="font-semibold text-base mb-4">Background Image</h3>
-        <p className="text-xs text-muted-foreground mb-3">Upload a background image that appears across all pages with a frosted-glass effect.</p>
-        <div className="space-y-3">
-          {settings.backgroundImageUrl ? (
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="w-28 h-20 rounded-lg border border-border overflow-hidden shrink-0">
-                  <img src={settings.backgroundImageUrl} alt="Background preview" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Current Preview</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{settings.backgroundImageUrl.split('/').pop()}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => bgInputRef.current?.click()} disabled={bgUploading}>
-                  <Upload className="h-4 w-4 mr-1.5" /> Replace
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setSettings({ ...settings, backgroundImageUrl: undefined })} className="text-destructive hover:text-destructive">
-                  <X className="h-4 w-4 mr-1.5" /> Remove Image
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => bgInputRef.current?.click()} disabled={bgUploading}>
-              {bgUploading ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Uploading...</> : <><Image className="h-4 w-4 mr-1.5" /> Upload Background Image</>}
-            </Button>
-          )}
-          <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgUpload} />
-        </div>
-      </div>
-
       {/* Actions */}
       <div className="flex gap-3 justify-end">
         <Button variant="outline" onClick={handleReset} className="rounded-lg"><RotateCcw className="h-4 w-4 mr-1.5" /> Reset to Defaults</Button>
@@ -438,23 +402,6 @@ export default function AdminSettings({ initialSettings, onSaved }: Props) {
       </div>
     </div>
   );
-
-  async function handleBgUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5 MB'); return; }
-    setBgUploading(true);
-    const url = await uploadFile(file, 'background');
-    if (url) {
-      setSettings({ ...settings, backgroundImageUrl: url });
-      toast.success('Background image uploaded');
-    } else {
-      toast.error('Failed to upload image');
-    }
-    setBgUploading(false);
-    e.target.value = '';
-  }
 }
 
 function formatH(h: number): string {

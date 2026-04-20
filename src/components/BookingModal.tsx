@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CircleCheck as CheckCircle, Loader as Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, CircleHelp as HelpCircle } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/button';
@@ -101,7 +101,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   if (!settings) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
-        <div className="bg-card rounded-2xl shadow-xl p-8 text-center w-full max-w-sm">
+        <div className="bg-card rounded-2xl shadow-xl p-8 text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
           <p className="text-sm text-muted-foreground mt-2">Loading...</p>
         </div>
@@ -215,8 +215,8 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-foreground/40 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto" onClick={onClose}>
-        <div className="bg-card rounded-2xl shadow-xl w-full max-w-md my-auto min-h-0 border border-border/40" onClick={e => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4" onClick={onClose}>
+        <div className="bg-card rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-border/40" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between p-4 border-b border-border/50">
             <h2 className="font-semibold text-lg">
               {step === 'form' && 'Book Community Hall'}

@@ -1,1 +1,0 @@
-ALTER TABLE public.settings ADD COLUMN background_image_url text DEFAULT NULL;
