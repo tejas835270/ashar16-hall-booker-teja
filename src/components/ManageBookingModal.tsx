@@ -12,8 +12,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  findBooking, cancelBooking, isSlotAvailable, updateBooking, getRent,
-  fetchSettings, HALL_LABELS, type Booking, type HallSettings,
+  findBooking, cancelBooking, isSlotAvailable, updateBooking,
+  HALL_LABELS, type Booking,
 } from '@/lib/bookingStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -28,7 +28,6 @@ export default function ManageBookingModal({ onClose, onChanged }: Props) {
   const [flatNumber, setFlatNumber] = useState('');
   const [searching, setSearching] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [settings, setSettings] = useState<HallSettings | null>(null);
 
   const [newDate, setNewDate] = useState<Date | undefined>();
   const [checking, setChecking] = useState(false);
@@ -51,8 +50,6 @@ export default function ManageBookingModal({ onClose, onChanged }: Props) {
       toast.error('This booking has already been cancelled');
       setBooking(null);
     } else {
-      const s = await fetchSettings();
-      setSettings(s);
       setBooking(b);
       setNewDate(undefined);
       setAvailable(null);
