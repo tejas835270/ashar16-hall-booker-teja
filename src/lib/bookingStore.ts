@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/supabase/client';
 
 export type HallOption = 'b-wing' | 'c-wing' | 'both';
-export type UserType = 'resident' | 'tenant';
+export type UserType = 'resident' | 'tenant' | 'society';
 export type TimeSlot = 'full' | 'half-slot1' | 'half-slot2' | 'custom';
 export type BookingType = 'online' | 'manual';
 
@@ -201,6 +201,7 @@ export const HALL_LABELS: Record<HallOption, string> = {
 };
 
 export function getRent(userType: UserType, timeSlot: TimeSlot, s?: HallSettings, hall?: HallOption): number {
+  if (userType === 'society') return 0;
   const settings = s || getCachedSettings();
   const p = settings.pricing[userType];
   const base = timeSlot === 'full' ? p.full : p.half;
