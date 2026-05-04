@@ -259,6 +259,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                     <SelectContent>
                       <SelectItem value="resident">Resident (Full ₹{settings.pricing.resident.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.resident.half.toLocaleString('en-IN')})</SelectItem>
                       <SelectItem value="tenant">Tenant (Full ₹{settings.pricing.tenant.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.tenant.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="society">Society Event (No Charge)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
