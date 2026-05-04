@@ -72,10 +72,9 @@ export default function ManageBookingModal({ onClose, onChanged }: Props) {
       ? await isSlotAvailable(ds, booking.hall, 'custom', booking.customStartHour, booking.customEndHour, booking.id)
       : await isSlotAvailable(ds, booking.hall, booking.timeSlot, undefined, undefined, booking.id);
     setAvailable(ok);
-    // Detect pricing tier change (Half ↔ Full ↔ Custom)
-    if (ok && settings && booking.userType !== 'society') {
-      const newRent = getRent(booking.userType, booking.timeSlot, settings, booking.hall);
-      if (newRent !== booking.rent) setPriceDifference(true);
+    // Inform users that any pricing-tier change should be coordinated with Management
+    if (ok && booking.userType !== 'society') {
+      setPriceDifference(true);
     }
     setChecking(false);
   }
