@@ -242,14 +242,16 @@ export default function Index() {
         <p className="text-muted-foreground text-sm mt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
           Select an available date to book the community hall
         </p>
-        {(settings.supportContactName || settings.supportContactNumber) && (
-          <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowHelp(true)}>
-            <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+          {(settings.supportContactName || settings.supportContactNumber) && (
+            <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setShowHelp(true)}>
+              <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setShowManage(true)}>
+            <Settings2 className="h-4 w-4 mr-1.5" /> Manage My Booking
           </Button>
-        )}
-        <Button variant="outline" size="sm" className="mt-3 ml-2 rounded-lg" onClick={() => setShowManage(true)}>
-          <Settings2 className="h-4 w-4 mr-1.5" /> Manage My Booking
-        </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
