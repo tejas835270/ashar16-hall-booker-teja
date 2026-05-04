@@ -450,7 +450,14 @@ export default function Admin() {
                       <td className="p-3 whitespace-nowrap">{slotLabel(b)}</td>
                       <td className="p-3 text-right whitespace-nowrap">₹{b.total.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-right whitespace-nowrap">
-                        {b.penaltyAmount ? <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span> : '—'}
+                        {b.penaltyAmount ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span>
+                            {b.penaltyReason && (
+                              <span className="text-[10px] text-muted-foreground max-w-[160px] whitespace-normal text-right" title={b.penaltyReason}>{b.penaltyReason}</span>
+                            )}
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
