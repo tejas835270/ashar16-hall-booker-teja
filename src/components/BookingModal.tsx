@@ -133,7 +133,12 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
 
   function handleSubmitForm() {
     if (!formValid) return;
-    setStep('payment');
+    if (userType === 'society') {
+      // Skip payment for society events
+      handlePay();
+    } else {
+      setStep('payment');
+    }
   }
 
   function handleScreenshotUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -149,10 +154,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   }
 
   async function handlePay() {
-    if (!screenshotFile) { toast.error('Please upload payment screenshot to proceed'); return; }
+    if (userType !== 'society' && !screenshotFile) {
+      toast.error('Please upload payment screenshot to proceed');
+      return;
+    }
     setPaying(true);
     try {
-      const url = await uploadFile(screenshotFile, 'payment-screenshots');
+      const url = screenshotFile ? await uploadFile(screenshotFile, 'payment-screenshots') : null;
       const b = await createBooking({
         flatNumber: flatNumber.trim(),
         name: name.trim(),
@@ -259,6 +267,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                     <SelectContent>
                       <SelectItem value="resident">Resident (Full ₹{settings.pricing.resident.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.resident.half.toLocaleString('en-IN')})</SelectItem>
                       <SelectItem value="tenant">Tenant (Full ₹{settings.pricing.tenant.full.toLocaleString('en-IN')} / Half ₹{settings.pricing.tenant.half.toLocaleString('en-IN')})</SelectItem>
+                      <SelectItem value="society">Society Event (No Charge)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

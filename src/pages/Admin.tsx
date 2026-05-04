@@ -103,8 +103,13 @@ export default function Admin() {
   }
 
   const activeBookings = bookings.filter(b => b.status === 'confirmed');
-  const totalRevenue = activeBookings.reduce((s, b) => s + b.total, 0);
+  const cancelledBookings = bookings.filter(b => b.status === 'cancelled');
+  // Exclude Society Events from revenue calculations
+  const revenueActive = activeBookings.filter(b => b.userType !== 'society').reduce((s, b) => s + b.total, 0);
+  const refundCancellations = cancelledBookings.filter(b => b.userType !== 'society').reduce((s, b) => s + b.total, 0);
+  const totalRevenue = revenueActive - refundCancellations;
   const totalPenalties = bookings.reduce((s, b) => s + (b.penaltyAmount || 0), 0);
+  const totalCancellations = cancelledBookings.length;
   const upcomingCount = activeBookings.filter(b => new Date(b.date) >= new Date(new Date().toDateString())).length;
 
   async function handleCancel(id: string) {
@@ -360,7 +365,7 @@ export default function Admin() {
       {tab === 'bookings' && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6">
             <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center"><CalendarDays className="h-5 w-5 text-primary" /></div>
               <div><p className="text-xs text-muted-foreground font-medium">Upcoming</p><p className="text-xl font-bold">{upcomingCount}</p></div>
@@ -375,7 +380,11 @@ export default function Admin() {
             </div>
             <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-destructive/20 to-destructive/5 flex items-center justify-center"><Ban className="h-5 w-5 text-destructive" /></div>
-              <div><p className="text-xs text-muted-foreground font-medium">Cancelled</p><p className="text-xl font-bold">{bookings.filter(b => b.status === 'cancelled').length}</p></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Cancelled</p><p className="text-xl font-bold">{totalCancellations}</p></div>
+            </div>
+            <div className="bg-card rounded-xl shadow-card p-4 flex items-center gap-3 border border-border/50 hover:shadow-card-hover transition-all duration-300 hover:-translate-y-0.5">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-destructive/20 to-destructive/5 flex items-center justify-center"><Ban className="h-5 w-5 text-destructive" /></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Total Cancellations (₹)</p><p className="text-xl font-bold">₹{refundCancellations.toLocaleString('en-IN')}</p></div>
             </div>
           </div>
 
@@ -441,7 +450,14 @@ export default function Admin() {
                       <td className="p-3 whitespace-nowrap">{slotLabel(b)}</td>
                       <td className="p-3 text-right whitespace-nowrap">₹{b.total.toLocaleString('en-IN')}</td>
                       <td className="p-3 text-right whitespace-nowrap">
-                        {b.penaltyAmount ? <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span> : '—'}
+                        {b.penaltyAmount ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-amber-600 font-medium">₹{b.penaltyAmount.toLocaleString('en-IN')}</span>
+                            {b.penaltyReason && (
+                              <span className="text-[10px] text-muted-foreground max-w-[160px] whitespace-normal text-right" title={b.penaltyReason}>{b.penaltyReason}</span>
+                            )}
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="p-3 text-center">{getStatusBadge(b)}</td>
                       <td className="p-3 text-center">{getTypeBadge(b)}</td>
@@ -926,6 +942,7 @@ function ManualBookingModal({ existingBooking, settings, onClose, onSaved }: { e
               <SelectContent>
                 <SelectItem value="resident">Resident</SelectItem>
                 <SelectItem value="tenant">Tenant</SelectItem>
+                <SelectItem value="society">Society Event (No Charge)</SelectItem>
               </SelectContent>
             </Select>
           </div>

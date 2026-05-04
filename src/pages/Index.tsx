@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, Clock, X, Info, Pencil, Check, HelpCircle, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import {
 } from '@/lib/bookingStore';
 import { isAdmin } from '@/lib/authStore';
 import BookingModal from '@/components/BookingModal';
+import ManageBookingModal from '@/components/ManageBookingModal';
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -110,6 +111,7 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [showManage, setShowManage] = useState(false);
 
   // Inline editing for society name
   const [editingName, setEditingName] = useState(false);
@@ -240,11 +242,16 @@ export default function Index() {
         <p className="text-muted-foreground text-sm mt-2 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-200">
           Select an available date to book the community hall
         </p>
-        {(settings.supportContactName || settings.supportContactNumber) && (
-          <Button variant="outline" size="sm" className="mt-3 rounded-lg" onClick={() => setShowHelp(true)}>
-            <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+          {(settings.supportContactName || settings.supportContactNumber) && (
+            <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setShowHelp(true)}>
+              <HelpCircle className="h-4 w-4 mr-1.5" /> Help / Support
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="rounded-lg" onClick={() => setShowManage(true)}>
+            <Settings2 className="h-4 w-4 mr-1.5" /> Manage My Booking
           </Button>
-        )}
+        </div>
       </div>
 
       <div className="bg-card rounded-2xl shadow-card border border-border/40 p-4 sm:p-6 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
@@ -327,6 +334,13 @@ export default function Index() {
           date={selectedDate}
           onClose={() => setSelectedDate(null)}
           onBooked={() => { setSelectedDate(null); setRefreshKey(k => k + 1); }}
+        />
+      )}
+
+      {showManage && (
+        <ManageBookingModal
+          onClose={() => setShowManage(false)}
+          onChanged={() => setRefreshKey(k => k + 1)}
         />
       )}
 

@@ -17,6 +17,7 @@ interface Props {
 
 export default function AnalyticsDashboard({ bookings }: Props) {
   const activeBookings = useMemo(() => bookings.filter(b => b.status === 'confirmed'), [bookings]);
+  const revenueBookings = useMemo(() => activeBookings.filter(b => b.userType !== 'society'), [activeBookings]);
 
   // --- Booking Trends (last 6 months) ---
   const bookingTrends = useMemo(() => {
@@ -48,7 +49,7 @@ export default function AnalyticsDashboard({ bookings }: Props) {
       });
     }
     return months.map(m => {
-      const revenue = activeBookings
+      const revenue = revenueBookings
         .filter(b => b.date.startsWith(m.key))
         .reduce((sum, b) => sum + b.total, 0);
       const penalties = bookings
@@ -80,8 +81,8 @@ export default function AnalyticsDashboard({ bookings }: Props) {
       .slice(0, 5);
   }, [activeBookings]);
 
-  const totalRevenue = activeBookings.reduce((s, b) => s + b.total, 0);
-  const avgBookingValue = activeBookings.length ? Math.round(totalRevenue / activeBookings.length) : 0;
+  const totalRevenue = revenueBookings.reduce((s, b) => s + b.total, 0);
+  const avgBookingValue = revenueBookings.length ? Math.round(totalRevenue / revenueBookings.length) : 0;
 
   return (
     <div className="space-y-6">
