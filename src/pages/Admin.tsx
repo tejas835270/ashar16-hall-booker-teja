@@ -942,6 +942,7 @@ function ManualBookingModal({ existingBooking, settings, onClose, onSaved }: { e
               <SelectContent>
                 <SelectItem value="resident">Resident</SelectItem>
                 <SelectItem value="tenant">Tenant</SelectItem>
+                <SelectItem value="society">Society Event (No Charge)</SelectItem>
               </SelectContent>
             </Select>
           </div>
