@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle } from 'lucide-react';
+import { X, CreditCard, CheckCircle, Loader2, ExternalLink, Download, Send, FileText, Upload, Image, Info, HelpCircle, Smartphone, Camera, AlertCircle } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import confetti from 'canvas-confetti';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,13 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
+  const [upiClicked, setUpiClicked] = useState(false);
+
+  // Temporary reference for UPI transaction note (real Booking ID is generated post-payment)
+  const tempRef = useMemo(
+    () => `HALL-${Date.now().toString(36).slice(-5).toUpperCase()}`,
+    []
+  );
 
   const [settings, setSettings] = useState<HallSettings | null>(null);
   const [conflicts, setConflicts] = useState<Booking[]>([]);
@@ -469,11 +476,37 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       </div>
                     )}
                     {settings.upiId && <p className="text-xs text-muted-foreground">UPI: {settings.upiId}</p>}
+                    {settings.upiId && (
+                      <a
+                        href={`upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.societyName || 'Hall Booking')}&am=${rent}&cu=INR&tn=${encodeURIComponent(`Hall Booking ID: ${tempRef}`)}`}
+                        onClick={() => setUpiClicked(true)}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 min-h-[44px] px-4 text-sm font-medium transition-colors"
+                      >
+                        <Smartphone className="h-4 w-4" /> Pay ₹{rent.toLocaleString('en-IN')} via UPI App
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {upiClicked && (
+                  <div className="rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40 p-4 shadow-md animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-amber-900 dark:text-amber-200">📸 ACTION REQUIRED: Take a Screenshot!</p>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                          Once you complete the payment in Google Pay/PhonePe, please take a screenshot of the successful transaction and upload it below. Your booking cannot be verified without this proof.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
                 <div className="bg-accent/60 rounded-lg p-4 space-y-3 border border-border/30">
                   <p className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Upload Payment Screenshot *</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <Camera className="h-3.5 w-3.5" /> Tip: Select the screenshot you just took from your gallery.
+                  </p>
                   {screenshotPreview ? (
                     <div className="relative">
                       <img src={screenshotPreview} alt="Payment screenshot" className="w-full max-h-40 object-contain rounded-lg" />
@@ -482,8 +515,11 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                       </button>
                     </div>
                   ) : (
-                    <Button variant="outline" className="w-full rounded-lg" onClick={() => screenshotInputRef.current?.click()}>
-                      <Upload className="h-4 w-4 mr-1.5" /> Choose Image
+                    <Button
+                      className="w-full rounded-lg bg-success hover:bg-success/90 text-success-foreground min-h-[44px]"
+                      onClick={() => screenshotInputRef.current?.click()}
+                    >
+                      <Upload className="h-4 w-4 mr-1.5" /> Upload Payment Screenshot
                     </Button>
                   )}
                   <input ref={screenshotInputRef} type="file" accept="image/*" className="hidden" onChange={handleScreenshotUpload} />
