@@ -587,6 +587,21 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showRedirectNotice} onOpenChange={setShowRedirectNotice}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redirecting to Society Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please paste the booking details (already copied to your clipboard) and attach the receipt you just downloaded as proof of booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performWhatsAppRedirect}>Open WhatsApp</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
