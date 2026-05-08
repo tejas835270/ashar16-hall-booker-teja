@@ -9,6 +9,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import {
   createBooking, getRent, getSlotTimes, getDynamicDeposit,
   fetchBookingsForDate, isSlotAvailable, formatHour, HALL_LABELS,
   fetchSettings, uploadFile,
@@ -71,6 +75,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
   const [paying, setPaying] = useState(false);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [showTerms, setShowTerms] = useState(false);
+  const [showRedirectNotice, setShowRedirectNotice] = useState(false);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
@@ -190,11 +195,54 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
     }
   }
 
-  function handleShareWhatsAppManagement() {
+  function buildShortSummary(b: Booking): string {
+    const society = settings?.societyName || 'Ashar 16 Hall';
+    const dateStr = new Date(b.date + 'T00:00:00').toLocaleDateString('en-IN', {
+      year: 'numeric', month: 'short', day: 'numeric',
+    });
+    return `Booking Confirmation - ${society}. ID: ${b.id}, Date: ${dateStr}, Flat: ${b.flatNumber}. Receipt generated.`;
+  }
+
+  async function handleSendToManagement() {
     if (!booking || !settings) return;
+    // Step 1: Generate & download receipt
+    try {
+      await downloadBookingPDF(booking, verificationUrl);
+    } catch {
+      toast.error('Could not generate receipt');
+      return;
+    }
+    // Step 2: Copy short summary to clipboard
+    try {
+      await navigator.clipboard.writeText(buildShortSummary(booking));
+      toast.success('Booking summary copied to clipboard');
+    } catch {
+      // non-fatal
+    }
+    // Step 4: If no group/whatsapp link configured, stop after download
+    const link = (settings.managementWhatsapp || '').trim();
+    if (!link) {
+      toast.info('Receipt downloaded. No Management WhatsApp link configured.');
+      return;
+    }
+    // Step 3: Show redirect notice, then open WhatsApp
+    setShowRedirectNotice(true);
+  }
+
+  function performWhatsAppRedirect() {
+    if (!booking || !settings) return;
+    const link = (settings.managementWhatsapp || '').trim();
     const msg = buildManagementMessage(booking, settings);
-    const phone = settings.managementWhatsapp || '';
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    let url: string;
+    if (/^https?:\/\//i.test(link)) {
+      // Group invite or chat link — cannot prefill text reliably
+      url = link;
+    } else {
+      const phone = link.replace(/\D/g, '');
+      url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    }
+    window.open(url, '_blank');
+    setShowRedirectNotice(false);
   }
 
   function handleCopyToClipboard() {
@@ -496,7 +544,7 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
                   <Button variant="outline" className="w-full rounded-lg" onClick={() => downloadBookingPDF(booking, verificationUrl)}>
                     <Download className="h-4 w-4 mr-1.5" /> Download Receipt
                   </Button>
-                  <Button variant="secondary" className="w-full rounded-lg" onClick={handleShareWhatsAppManagement}>
+                  <Button variant="secondary" className="w-full rounded-lg" onClick={handleSendToManagement}>
                     <Send className="h-4 w-4 mr-1.5" /> Send to Management via WhatsApp
                   </Button>
                 </div>
@@ -539,6 +587,21 @@ export default function BookingModal({ date, onClose, onBooked }: Props) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showRedirectNotice} onOpenChange={setShowRedirectNotice}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redirecting to Society Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please paste the booking details (already copied to your clipboard) and attach the receipt you just downloaded as proof of booking.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={performWhatsAppRedirect}>Open WhatsApp</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
